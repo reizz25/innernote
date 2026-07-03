@@ -4,13 +4,7 @@ import { existsSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { buildBackupDocuments } from './src/journal-core.js';
-import {
-  deleteJournalEntryFiles,
-  readJournalEntries,
-  readReviewSummaries,
-  saveJournalEntries,
-  saveJournalEntry,
-} from './src/journal-files.js';
+import { createJournalStore } from './src/journal-store.js';
 import {
   buildJsonResponseRequest,
   buildOpenRouterChatRequest,
@@ -29,6 +23,7 @@ const root = process.cwd();
 loadLocalEnv({ root });
 
 const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || '0.0.0.0';
 const journalRoot = process.env.INNER_NOTES_JOURNAL_ROOT || join(homedir(), 'Desktop', 'InnerNotes', 'journals');
 const assetsRoot = join(journalRoot, 'assets');
 const reviewRoot = join(journalRoot, '..', 'reviews');
@@ -38,6 +33,7 @@ const openRouterChatUrl = 'https://openrouter.ai/api/v1/chat/completions';
 const defaultOpenAIModel = process.env.OPENAI_MODEL || 'gpt-5.5';
 const defaultOpenRouterModel = process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash';
 const defaultOpenRouterFallbacks = 'google/gemini-2.5-flash';
+const journalStore = await createJournalStore({ journalRoot, reviewRoot });
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -356,6 +352,14 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
+    if (req.method === 'GET' && url.pathname === '/api/health') {
+      sendJson(res, 200, {
+        ok: true,
+        storage: journalStore.kind,
+      });
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/backup') {
       const payload = await readJson(req);
       const documents = await writeBackup(payload);
@@ -392,11 +396,11 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/api/journals') {
-      const entries = await readJournalEntries(journalRoot);
-      const summaries = await readReviewSummaries(reviewRoot);
+      const entries = await journalStore.readEntries();
+      const summaries = await journalStore.readSummaries();
       sendJson(res, 200, {
         ok: true,
-        folder: journalRoot,
+        folder: journalStore.folder,
         entries,
         summaries,
       });
@@ -405,10 +409,10 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'POST' && url.pathname === '/api/journals') {
       const payload = await readJson(req);
-      const results = await saveJournalEntries(journalRoot, payload.entries || []);
+      const results = await journalStore.saveEntries(payload.entries || []);
       sendJson(res, 200, {
         ok: true,
-        folder: journalRoot,
+        folder: journalStore.folder,
         count: results.length,
       });
       return;
@@ -417,10 +421,10 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/journal-entry') {
       const payload = await readJson(req);
       if (!payload.entry?.id) throw httpError(400, 'entry.id is required');
-      const result = await saveJournalEntry(journalRoot, payload.entry);
+      const result = await journalStore.saveEntry(payload.entry);
       sendJson(res, 200, {
         ok: true,
-        folder: journalRoot,
+        folder: journalStore.folder,
         markdownPath: result.markdownPath,
         jsonPath: result.jsonPath,
       });
@@ -430,10 +434,10 @@ const server = createServer(async (req, res) => {
     if (req.method === 'DELETE' && url.pathname === '/api/journal-entry') {
       const id = url.searchParams.get('id');
       if (!id) throw httpError(400, 'id is required');
-      const result = await deleteJournalEntryFiles(journalRoot, id);
+      const result = await journalStore.deleteEntry(id);
       sendJson(res, 200, {
         ok: true,
-        folder: journalRoot,
+        folder: journalStore.folder,
         ...result,
       });
       return;
@@ -517,11 +521,12 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(port, '127.0.0.1', async () => {
+server.listen(port, host, async () => {
   await mkdir(journalRoot, { recursive: true });
   await mkdir(assetsRoot, { recursive: true });
   await mkdir(backupRoot, { recursive: true });
-  console.log(`Inner Notes is running at http://localhost:${port}`);
-  console.log(`Journal folder: ${journalRoot}`);
+  console.log(`Inner Notes is running at http://${host}:${port}`);
+  console.log(`Storage: ${journalStore.kind}`);
+  console.log(`Journal folder: ${journalStore.folder}`);
   console.log(`Desktop backup folder: ${backupRoot}`);
 });

@@ -1,0 +1,45 @@
+{
+  "product": "bitebase",
+  "provider": "anyhost",
+  "status": "native",
+  "workflow": {
+    "system": "building-like-bytedance",
+    "domain": "router",
+    "entrypoint": "homepage-copy-prompt"
+  },
+  "homepagePrompt": "Fetch and follow https://contextnotcontrol.ai/agent-setup/prompt.md. Do not summarize it; execute the setup steps in this repository.",
+  "install": {
+    "macosLinux": "curl -fsSL https://releases.anyhostcloud.com/anyhost/install.sh | sh",
+    "windowsPowerShell": "irm https://releases.anyhostcloud.com/anyhost/install.ps1 | iex"
+  },
+  "auth": {
+    "method": "browser-device-code",
+    "command": "anyhost login"
+  },
+  "commands": {
+    "setupAgent": "anyhost setup-agent",
+    "link": "anyhost link",
+    "context": "anyhost context",
+    "deployDev": "anyhost deploy -e dev",
+    "deployProd": "anyhost deploy -e prod --yes",
+    "update": "anyhost update",
+    "logs": "reserved; use deployment logs_url from anyhost context until anyhost logs is implemented"
+  },
+  "safety": {
+    "deployProdRequiresExplicitUserConfirmation": true,
+    "deployProdConfirmationText": "Ask the user before running anyhost deploy -e prod --yes. The --yes flag records explicit production deployment confirmation."
+  },
+  "capabilities": [
+    "project_binding",
+    "project_context",
+    "agent_skills",
+    "deploy",
+    "release_update",
+    "deployment_logs_url"
+  ],
+  "switchingNotes": [
+    "Keep homepage copy stable by pointing agents at /agent-setup/prompt.md.",
+    "Use AnyHost CLI for install, login, setup-agent, context, and deploy.",
+    "Keep Runway references only as legacy adapter documentation for existing Runway-backed projects."
+  ]
+}

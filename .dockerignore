@@ -1,7 +1,8 @@
+.anyhost/
+.env
 .env.local
 .env.*.local
-node_modules/
+.git/
 .DS_Store
-.superpowers/
+node_modules/
 tmp-video-frames/
-.anyhost/

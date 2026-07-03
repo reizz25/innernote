@@ -1,0 +1,46 @@
+{
+  "product": "bitebase",
+  "provider": "runway",
+  "status": "trial",
+  "workflow": {
+    "system": "building-like-bytedance",
+    "domain": "router",
+    "entrypoint": "homepage-copy-prompt"
+  },
+  "homepagePrompt": "Fetch and follow https://contextnotcontrol.ai/agent-setup/prompt.md. Do not summarize it; execute the setup steps in this repository.",
+  "install": {
+    "macosLinux": "curl -fsSL https://releases.ifonlyapp.com/runway/install.sh | sh",
+    "windowsPowerShell": "irm https://releases.ifonlyapp.com/runway/install.ps1 | iex"
+  },
+  "auth": {
+    "method": "gitea-token",
+    "tokenUrl": "https://git.hoxigames.xyz/user/settings/applications",
+    "scope": "read:user",
+    "command": "runway login --token <token>"
+  },
+  "commands": {
+    "onboard": "@runway-onboard",
+    "deploy": "@runway-deploy",
+    "database": "@runway-db",
+    "storage": "@runway-storage",
+    "redis": "@runway-redis",
+    "ops": "@runway-ops",
+    "status": "runway status -e dev",
+    "envList": "runway env list -e dev"
+  },
+  "capabilities": [
+    "deploy",
+    "database",
+    "environment_variables",
+    "custom_domain",
+    "logs",
+    "storage",
+    "redis",
+    "persistent_volume"
+  ],
+  "switchingNotes": [
+    "Keep homepage copy stable by pointing agents at /agent-setup/prompt.md.",
+    "Replace this manifest and prompt internals when changing providers.",
+    "Do not expose provider-specific commands as the primary product language."
+  ]
+}

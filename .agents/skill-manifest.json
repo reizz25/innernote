@@ -1,0 +1,92 @@
+{
+  "name": "bitebase-agent-setup",
+  "version": "0.1.1",
+  "updatedAt": "2026-07-03",
+  "product": "bitebase",
+  "operatingModel": "building-like-bytedance",
+  "compatibility": {
+    "agents": [
+      "Codex",
+      "Claude Code",
+      "Cursor",
+      "generic coding agents that can fetch URLs and edit a repository"
+    ],
+    "installTarget": ".agents",
+    "requiresManualReadWhenRuntimeDoesNotAutoLoadSkills": true
+  },
+  "providerAdapters": [
+    {
+      "name": "anyhost",
+      "version": "0.1.0",
+      "manifest": "providers/anyhost.json",
+      "status": "native"
+    },
+    {
+      "name": "runway",
+      "version": "0.1.0",
+      "manifest": "providers/runway.json",
+      "status": "legacy"
+    }
+  ],
+  "skills": [
+    "building-like-bytedance",
+    "deployment",
+    "analytics",
+    "growth-analysis",
+    "strategy",
+    "design"
+  ],
+  "references": {
+    "deployment": [
+      "skills/deployment/references/deploy.md",
+      "skills/deployment/references/debug.md",
+      "skills/deployment/references/database.md",
+      "skills/deployment/references/storage.md",
+      "skills/deployment/references/redis.md",
+      "skills/deployment/references/anyhost-adapter.md",
+      "skills/deployment/references/runway-adapter.md"
+    ],
+    "analytics": [
+      "skills/analytics/references/event-tracking.md",
+      "skills/analytics/references/experiment-measurement.md",
+      "skills/analytics/references/metrics-modeling.md"
+    ],
+    "growth-analysis": [
+      "skills/growth-analysis/references/acquisition-funnel.md",
+      "skills/growth-analysis/references/attribution.md",
+      "skills/growth-analysis/references/channel-cohort-analysis.md",
+      "skills/growth-analysis/references/ltv-roi-modeling.md",
+      "skills/growth-analysis/references/paid-growth-experiments.md"
+    ],
+    "strategy": [
+      "skills/strategy/references/market-research.md",
+      "skills/strategy/references/positioning.md",
+      "skills/strategy/references/prioritization.md"
+    ],
+    "design": [
+      "skills/design/references/feature-design.md",
+      "skills/design/references/frontend-design.md"
+    ]
+  },
+  "specs": [
+    "specs/artifacts.md",
+    "specs/agent-api.md"
+  ],
+  "evals": [
+    "evals/prompts.md"
+  ],
+  "artifactPolicy": {
+    "docsRoot": "docs",
+    "writeArtifactsWhenAProductDecisionOrDurableStateChanges": true,
+    "neverCommitSecrets": [
+      ".anyhost/",
+      "token files",
+      "provider credentials"
+    ]
+  },
+  "upgradePolicy": {
+    "doNotOverwriteLocalUserModifiedFilesAutomatically": true,
+    "compareHostedAndLocalCopiesOnlyWhenUserRequestsUpdate": true,
+    "recordLocalVersionIn": ".agents/skill-manifest.json"
+  }
+}
