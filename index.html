@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inner Notes</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <div class="loading">正在打开你的日记本...</div>
+  </div>
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has('repairLocal')) return;
+      localStorage.removeItem('inner-notes-state-v1');
+      params.delete('repairLocal');
+      const nextSearch = params.toString();
+      window.history.replaceState(null, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}`);
+    })();
+  </script>
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inner Notes soft demo</title>
+  <style>
+    :root {
+      --ink: #202a25;
+      --muted: #69746e;
+      --faint: #98a39d;
+      --line: #e3e7e1;
+      --paper: #fffdfa;
+      --wash: #f6f2eb;
+      --leaf: #315f4d;
+      --leaf-soft: #edf5ef;
+      --blue-soft: #eef2f7;
+      --purple-soft: #f1eff7;
+      --orange-soft: #fbf1e5;
+      --rose-soft: #f8eeee;
+      --yellow-soft: #fbf6df;
+      --danger: #9b4545;
+      --fs-hero: 32px;
+      --fs-body: 18px;
+      --fs-title: 16px;
+      --fs-ai: 15px;
+      --fs-ui: 14px;
+      --fs-meta: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--wash);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    textarea,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .demo {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 252px minmax(620px, 1fr) 340px;
+    }
+
+    .side,
+    .companion {
+      padding: 28px 22px;
+    }
+
+    .side {
+      color: #4d5b54;
+      background: rgba(255, 253, 248, 0.72);
+      border-right: 1px solid rgba(221, 224, 218, 0.78);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      font-size: 15px;
+      font-weight: 740;
+      letter-spacing: 0;
+    }
+
+    .mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #34755f, #8c83aa);
+    }
+
+    .quiet-primary {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 14px;
+      background: var(--leaf);
+      color: white;
+      font-size: var(--fs-ui);
+      font-weight: 720;
+      box-shadow: 0 8px 22px rgba(47, 114, 92, 0.18);
+    }
+
+    .notebook {
+      margin-top: 18px;
+      padding: 12px 10px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .notebook strong {
+      display: block;
+      color: #374840;
+      font-size: var(--fs-ui);
+      margin-bottom: 4px;
+    }
+
+    .notebook span {
+      color: var(--faint);
+      font-size: var(--fs-meta);
+    }
+
+    .side-label {
+      margin: 24px 0 10px;
+      color: var(--faint);
+      font-size: var(--fs-meta);
+    }
+
+    .day-list {
+      display: grid;
+      gap: 5px;
+    }
+
+    .day {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 11px;
+      background: transparent;
+      color: inherit;
+      font-size: var(--fs-ui);
+      text-align: left;
+    }
+
+    .day-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .day-title span:first-child {
+      font-weight: 700;
+    }
+
+    .day-title span:last-child {
+      color: var(--faint);
+      font-size: var(--fs-meta);
+      font-weight: 500;
+    }
+
+    .day.active {
+      background: #f0f6f1;
+      color: #225d49;
+      font-weight: 700;
+    }
+
+    .day small {
+      display: block;
+      margin-top: 3px;
+      color: var(--faint);
+      font-size: var(--fs-meta);
+      font-weight: 500;
+    }
+
+    .day-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .mini-tag {
+      border-radius: 999px;
+      padding: 3px 7px;
+      font-size: 11px;
+      font-weight: 580;
+    }
+
+    .mini-tag.calm {
+      background: var(--leaf-soft);
+      color: #477260;
+    }
+
+    .mini-tag.low {
+      background: var(--blue-soft);
+      color: #657088;
+    }
+
+    .mini-tag.conflict {
+      background: var(--orange-soft);
+      color: #8a6352;
+    }
+
+    .archive-nav,
+    .review-list {
+      display: grid;
+      gap: 4px;
+    }
+
+    .archive-link,
+    .review-link {
+      border: 0;
+      border-radius: 9px;
+      padding: 8px 10px;
+      background: transparent;
+      color: #526058;
+      font-size: var(--fs-ui);
+      text-align: left;
+    }
+
+    .archive-link.active,
+    .review-link.active {
+      font-weight: 680;
+    }
+
+    .archive-link.active {
+      background: rgba(255, 255, 255, 0.58);
+      color: #34443c;
+    }
+
+    .review-link.active {
+      background: var(--blue-soft);
+      color: #59677d;
+      font-weight: 680;
+    }
+
+    .review-link.month {
+      background: var(--yellow-soft);
+      color: #776941;
+    }
+
+    .side-details {
+      margin-top: 32px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+      color: var(--muted);
+      font-size: var(--fs-meta);
+      line-height: 1.7;
+    }
+
+    .side-details summary {
+      list-style: none;
+      color: #526058;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    .side-details summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .main {
+      background: var(--paper);
+      padding: 56px min(6vw, 76px) 80px;
+      overflow-y: auto;
+    }
+
+    .demo-note {
+      display: none;
+      margin-bottom: 30px;
+      color: var(--faint);
+      font-size: var(--fs-meta);
+    }
+
+    .date-line {
+      color: var(--muted);
+      font-size: var(--fs-meta);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0 0 34px;
+      font-size: var(--fs-hero);
+      line-height: 1.18;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .paper {
+      max-width: 780px;
+    }
+
+    .body {
+      min-height: 380px;
+      padding: 0 0 30px;
+      border: 0;
+      outline: 0;
+      color: #25302b;
+      font-size: var(--fs-body);
+      line-height: 1.95;
+      white-space: pre-wrap;
+    }
+
+    .body .placeholder {
+      color: #9ba6a0;
+    }
+
+    .soft-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0 32px;
+      padding-top: 0;
+    }
+
+    .button,
+    .text-button,
+    .danger-button {
+      min-height: 36px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      padding: 0 13px;
+      background: white;
+      color: #385648;
+      font-size: var(--fs-ui);
+      font-weight: 660;
+    }
+
+    .button.primary {
+      border-color: #cdded4;
+      background: var(--leaf-soft);
+      color: #255f4b;
+    }
+
+    .text-button {
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 560;
+    }
+
+    .danger-button {
+      border-color: #ead7d7;
+      color: var(--danger);
+      background: transparent;
+    }
+
+    .save-state {
+      margin-left: auto;
+      color: var(--faint);
+      font-size: 13px;
+    }
+
+    .settle {
+      max-width: 780px;
+      padding-top: 8px;
+    }
+
+    .settle-title {
+      margin-bottom: 16px;
+      color: #46554d;
+      font-size: var(--fs-title);
+      font-weight: 700;
+    }
+
+    .line-field {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .line-field > span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .chips,
+    .segments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip,
+    .segment {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: rgba(255, 255, 255, 0.66);
+      color: #5f6c65;
+      font-size: 13px;
+    }
+
+    .chip.calm {
+      background: var(--leaf-soft);
+      color: #477260;
+    }
+
+    .chip.low {
+      background: var(--blue-soft);
+      color: #657088;
+    }
+
+    .chip.conflict {
+      background: var(--orange-soft);
+      color: #8a6352;
+    }
+
+    .chip.calm.active,
+    .segment.full.active {
+      border-color: #bfd6c8;
+      background: #e5f1e8;
+      color: #2b6651;
+      font-weight: 650;
+    }
+
+    .chip.low.active,
+    .segment.low.active {
+      border-color: #d8dde8;
+      background: var(--purple-soft);
+      color: #586174;
+      font-weight: 650;
+    }
+
+    .chip.conflict.active {
+      border-color: #ead4c5;
+      background: #faeee5;
+      color: #775e3a;
+      font-weight: 650;
+    }
+
+    .segment.ok.active {
+      border-color: #dfe3dd;
+      background: #f5f6f2;
+      color: #5c6861;
+      font-weight: 650;
+    }
+
+    .tomorrow {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid #dedbd1;
+      padding: 8px 0;
+      color: #2d3833;
+      background: transparent;
+      outline: 0;
+    }
+
+    .todo-line {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .todo-check {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #e0cbb8;
+      border-radius: 5px;
+      background: var(--orange-soft);
+    }
+
+    .companion {
+      background: rgba(255, 253, 248, 0.58);
+      border-left: 1px solid rgba(221, 224, 218, 0.78);
+      overflow-y: auto;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 14px;
+      font-size: var(--fs-title);
+      font-weight: 760;
+    }
+
+    .panel-title span {
+      color: var(--faint);
+      font-size: var(--fs-meta);
+      font-weight: 520;
+    }
+
+    .read-card {
+      padding: 0 0 4px;
+      margin-bottom: 8px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .read-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #40574c;
+      font-size: var(--fs-ui);
+      font-weight: 760;
+    }
+
+    .read-card strong {
+      font-weight: 700;
+    }
+
+    .read-card blockquote {
+      margin: 0 0 9px;
+      padding-left: 10px;
+      border-left: 2px solid #d9e4dd;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .read-card p {
+      margin: 0;
+      color: #445049;
+      font-size: var(--fs-ai);
+      line-height: 1.7;
+    }
+
+    .read-question {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: #506158;
+      font-size: var(--fs-ai);
+      line-height: 1.65;
+    }
+
+    .fine-read {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .fine-read summary {
+      width: fit-content;
+      list-style: none;
+      cursor: pointer;
+      color: #365647;
+      font-weight: 680;
+    }
+
+    .fine-read summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .fine-read ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      line-height: 1.7;
+    }
+
+    .chat {
+      margin-top: 24px;
+      border-top: 1px solid var(--line);
+      padding-top: 20px;
+    }
+
+    .bubble {
+      max-width: 92%;
+      margin-bottom: 9px;
+      border-radius: 13px;
+      padding: 10px 12px;
+      font-size: var(--fs-ui);
+      line-height: 1.65;
+    }
+
+    .bubble.user {
+      margin-left: auto;
+      background: #f0f6f1;
+      color: #263d34;
+    }
+
+    .bubble.me {
+      background: transparent;
+      border: 1px solid #e2e5df;
+      color: #3f4b45;
+    }
+
+    .chat-input {
+      width: 100%;
+      min-height: 84px;
+      margin: 6px 0;
+      padding: 11px 0;
+      border: 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      resize: vertical;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-size: var(--fs-ui);
+    }
+
+    .saved-chat {
+      margin-top: 20px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .saved-chat summary {
+      list-style: none;
+      color: #526058;
+      cursor: pointer;
+      font-size: var(--fs-ui);
+      font-weight: 700;
+    }
+
+    .saved-chat summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .chat-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    @media (max-width: 1120px) {
+      .demo {
+        grid-template-columns: 210px minmax(0, 1fr);
+      }
+
+      .companion {
+        grid-column: 1 / -1;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .demo {
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .main {
+        padding: 32px 22px 56px;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      .line-field {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="demo">
+    <aside class="side">
+      <div class="brand">
+        <div class="mark"></div>
+        <div>Inner Notes</div>
+      </div>
+
+      <button class="quiet-primary">写今天这一页</button>
+
+      <div class="notebook">
+        <strong>我的日记本</strong>
+        <span>2026 年 · 第 24 周</span>
+      </div>
+
+      <div class="side-label">最近</div>
+      <div class="day-list">
+        <button class="day active">
+          <div class="day-title"><span>6 月 15 日 周一</span><span>22:18</span></div>
+          <small>有点累，但写下来了</small>
+          <div class="day-tags">
+            <span class="mini-tag low">#焦虑</span>
+            <span class="mini-tag conflict">#不安</span>
+          </div>
+        </button>
+        <button class="day">
+          <div class="day-title"><span>6 月 14 日 周日</span><span>23:02</span></div>
+          <small>想明白了一件小事</small>
+          <div class="day-tags">
+            <span class="mini-tag calm">#平静</span>
+          </div>
+        </button>
+        <button class="day">
+          <div class="day-title"><span>6 月 11 日 周四</span><span>01:02</span></div>
+          <small>感冒，但还是撑着</small>
+          <div class="day-tags">
+            <span class="mini-tag low">#委屈</span>
+          </div>
+        </button>
+      </div>
+
+      <div class="side-label">归档</div>
+      <div class="archive-nav">
+        <button class="archive-link active">2026 年</button>
+        <button class="archive-link active">6 月</button>
+        <button class="archive-link">本周</button>
+        <button class="archive-link">更多归档</button>
+      </div>
+
+      <div class="side-label">自动回顾</div>
+      <div class="review-list">
+        <button class="review-link active">这一周的回顾</button>
+        <button class="review-link month">这个月的回顾</button>
+      </div>
+
+      <details class="side-details">
+        <summary>更多</summary>
+        <button class="text-button">备份</button>
+        <button class="text-button">提醒时间</button>
+      </details>
+    </aside>
+
+    <main class="main">
+      <section class="paper">
+        <div class="date-line">6 月 15 日 周一 · 夜里 22:18</div>
+        <h1>今天想记下什么？</h1>
+
+        <div class="body" contenteditable="true">
+今天下午我本来想休息，但还是忍不住去处理别人的事。
+我嘴上说没关系，其实心里有一点烦。
+好像只要别人需要我，我就很难先照顾自己。
+        </div>
+
+        <div class="soft-actions">
+          <button class="button primary">陪我看一遍</button>
+          <button class="button">保存</button>
+          <button class="text-button">更多</button>
+          <span class="save-state">刚刚保存</span>
+        </div>
+      </section>
+
+      <section class="settle">
+        <div class="settle-title">给今天留个标记</div>
+
+        <div class="line-field">
+          <span>今天的情绪</span>
+          <div class="chips">
+            <button class="chip calm active">#平静</button>
+            <button class="chip calm">#快乐</button>
+            <button class="chip calm">#幸福</button>
+            <button class="chip calm">#期待</button>
+            <button class="chip low">#难过</button>
+            <button class="chip low active">#焦虑</button>
+            <button class="chip low">#委屈</button>
+            <button class="chip low">#迷茫</button>
+            <button class="chip conflict">#愤怒</button>
+            <button class="chip conflict">#犹豫</button>
+            <button class="chip conflict active">#不安</button>
+            <button class="chip conflict">#紧绷</button>
+          </div>
+        </div>
+
+        <div class="line-field">
+          <span>能量</span>
+          <div class="segments">
+            <button class="segment low active">能量不足</button>
+            <button class="segment ok">尚可</button>
+            <button class="segment full">充沛</button>
+          </div>
+        </div>
+
+        <div class="line-field">
+          <span>带到明天</span>
+          <div class="todo-line">
+            <button class="todo-check" aria-label="标记完成"></button>
+            <input class="tomorrow" value="找一段不被打断的时间，先做自己的事。">
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="companion">
+      <div class="panel-title">陪我看一遍</div>
+
+      <article class="read-card">
+        <span class="read-label">读后回应</span>
+        <blockquote>别人需要我，我就很难先照顾自己。</blockquote>
+        <p>我读到你其实已经有点累了，但还是很难把自己放在前面。这不是你“不懂拒绝”这么简单，更像一个很熟练的自动反应。明天可以先留一小段不被打断的时间，看看你会不会又想把它让出去。</p>
+        <div class="read-question">要不要继续说说，为什么“先顾自己”会让你觉得自私？</div>
+        <details class="fine-read">
+          <summary>再细看一点</summary>
+          <ul>
+            <li>你有很强的照看能力，但它可能启动得太快。</li>
+            <li>真正值得看的不是“要不要帮别人”，而是“我有没有先消失”。</li>
+          </ul>
+        </details>
+      </article>
+
+      <section class="chat">
+        <div class="panel-title">继续聊几句</div>
+        <div class="bubble user">我怕如果我先顾自己，会显得很自私。</div>
+        <div class="bubble me">我听见了。这里有个小岔路：你可能把“先照顾自己”和“不在乎别人”绑在一起了。它们不是一回事。</div>
+        <textarea class="chat-input" placeholder="如果还有一点没说完，可以接着说。"></textarea>
+        <div class="chat-row">
+          <button class="button primary">继续说</button>
+          <button class="text-button">放进这篇日记</button>
+        </div>
+      </section>
+
+      <details class="saved-chat">
+        <summary>已放进这篇日记的对话</summary>
+        <p>关于“我是不是把先顾自己理解成自私”的那段，已经保存成今天的对话摘录。需要时可以展开回看。</p>
+      </details>
+    </aside>
+  </div>
+</body>
+</html>
