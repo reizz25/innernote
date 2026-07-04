@@ -18,6 +18,7 @@ import {
 } from './src/openai-client.js';
 import { loadLocalEnv } from './src/local-env.js';
 import { chatInstructions, readResponseInstructions } from './src/model-prompts.js';
+import { authorizeReviewSync, reviewSummariesFromPayload } from './src/review-sync.js';
 
 const root = process.cwd();
 loadLocalEnv({ root });
@@ -410,10 +411,26 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/journals') {
       const payload = await readJson(req);
       const results = await journalStore.saveEntries(payload.entries || []);
+      const summaries = payload.summaries ? reviewSummariesFromPayload(payload) : [];
+      if (summaries.length) await journalStore.saveSummaries(summaries);
       sendJson(res, 200, {
         ok: true,
         folder: journalStore.folder,
         count: results.length,
+        summaryCount: summaries.length,
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/review-summaries') {
+      authorizeReviewSync(req.headers);
+      const payload = await readJson(req);
+      const summaries = reviewSummariesFromPayload(payload);
+      await journalStore.saveSummaries(summaries);
+      sendJson(res, 200, {
+        ok: true,
+        folder: journalStore.folder,
+        count: summaries.length,
       });
       return;
     }
