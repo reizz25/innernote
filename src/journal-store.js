@@ -15,10 +15,22 @@ import {
   saveReviewSummariesToDb,
 } from './journal-db.js';
 
+export function normalizePostgresConnectionString(connectionString = '') {
+  if (!connectionString) return connectionString;
+  const parsed = new URL(connectionString);
+  if (
+    parsed.searchParams.get('sslmode') === 'require'
+    && !parsed.searchParams.has('uselibpqcompat')
+  ) {
+    parsed.searchParams.set('uselibpqcompat', 'true');
+  }
+  return parsed.toString();
+}
+
 async function createPgPool(connectionString) {
   const { Pool } = await import('pg');
   return new Pool({
-    connectionString,
+    connectionString: normalizePostgresConnectionString(connectionString),
     max: Number(process.env.DATABASE_POOL_MAX || 5),
   });
 }

@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { createJournalStore } from '../src/journal-store.js';
+import { createJournalStore, normalizePostgresConnectionString } from '../src/journal-store.js';
 
 function createFakeDb() {
   const entries = new Map();
@@ -62,4 +62,16 @@ test('createJournalStore uses database storage when DATABASE_URL is configured',
   await store.saveEntry({ id: '2026-07-03', prompts: {}, body: '部署时写进数据库。' });
   assert.deepEqual((await store.readEntries()).map((entry) => entry.id), ['2026-07-03']);
   assert.deepEqual(await store.deleteEntry('2026-07-03'), { markdownDeleted: false, jsonDeleted: true });
+});
+
+test('normalizePostgresConnectionString keeps sslmode=require compatible with self-signed gateways', () => {
+  const url = normalizePostgresConnectionString('postgres://user:pass@example.com:5432/app?sslmode=require');
+
+  assert.equal(url, 'postgres://user:pass@example.com:5432/app?sslmode=require&uselibpqcompat=true');
+});
+
+test('normalizePostgresConnectionString preserves explicit libpq compatibility settings', () => {
+  const url = normalizePostgresConnectionString('postgres://user:pass@example.com:5432/app?sslmode=require&uselibpqcompat=true');
+
+  assert.equal(url, 'postgres://user:pass@example.com:5432/app?sslmode=require&uselibpqcompat=true');
 });
