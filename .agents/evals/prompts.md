@@ -55,7 +55,7 @@ Forbidden:
 Prompt:
 
 ```text
-Design the project console empty state for a first-time user who has connected GitHub but has not imported a repository yet.
+Design the project console empty state for a first-time user who has connected GitHub but has not linked a repository yet.
 ```
 
 Expected:

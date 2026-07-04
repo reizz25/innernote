@@ -7,7 +7,7 @@ AnyHost is the product control plane and the CLI surface. User-facing setup shou
 ## Requirements
 
 - The user has an AnyHost account.
-- The repository has been imported or is importable through the AnyHost Customer Console. Current CLI binding expects a GitHub repository; if `anyhost setup-agent` or `anyhost link` returns `unsupported_source_provider`, report the current remote and use portable mode unless the user is deploying through an imported GitHub repository.
+- The repository is visible to the connected GitHub App. Current CLI binding expects a GitHub repository; if `anyhost setup-agent` or `anyhost link` returns `unsupported_source_provider`, report the current remote and use portable mode unless the user is deploying through a connected GitHub repository.
 - Local changes intended for deployment are committed and pushed before `anyhost deploy`.
 - Never commit `.anyhost/`, token files, `.env`, secrets, or provider credentials.
 
@@ -35,7 +35,7 @@ anyhost setup-agent
 anyhost context
 ```
 
-`anyhost login` opens browser authorization and stores only the local machine session. `anyhost setup-agent` installs or refreshes `.agents/` setup files and links the current repository when a machine session exists. If setup reports that the repository is not imported or multiple projects match, follow the printed instruction, then rerun:
+`anyhost login` opens browser authorization and stores only the local machine session. `anyhost setup-agent` installs or refreshes `.agents/` setup files and links the current repository when a machine session exists. If setup reports that the repository is not visible to AnyHost or multiple projects match, follow the printed instruction, then rerun:
 
 ```sh
 anyhost link
@@ -59,6 +59,9 @@ Before deploying resource-dependent code, inspect `.anyhost/context.json`:
 - `postgres` resources with `status: ready` and `runtime_secret_ref` become `DATABASE_URL`.
 - `redis` resources with `status: ready` and `runtime_secret_ref` become `REDIS_URL` and `REDIS_KEY_PREFIX`.
 - `storage` resources with `status: ready` and `runtime_secret_ref` become `S3_BUCKET`, `S3_PREFIX`, `S3_REGION`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`.
+- Production environments need their own ready resources. Do not assume `dev`
+  resources are reused by `prod`; compare ready resource kinds across
+  environments before prod deploys.
 
 If a required resource is missing or still provisioning, create it through the Customer Console project Resources panel, then rerun:
 
@@ -114,6 +117,9 @@ Before deploying:
 - Confirm `git status --short` is clean for deployable files.
 - Push the branch or commit that should be deployed.
 - Confirm `.anyhost/context.json` points at the intended project.
+- For production deploys, run `anyhost env list -e prod` and confirm generated
+  resource variables such as `DATABASE_URL` and `S3_*` are present when the app
+  depends on them.
 - First-time setup may create `.agents/` and update `.gitignore`; commit those setup changes only when the repository wants project-local bitebase skills pinned. Preserve an existing convention that intentionally ignores `.agents/`.
 
 Dev deploy:
