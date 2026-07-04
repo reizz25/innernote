@@ -352,7 +352,7 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
-    if (req.method === 'GET' && url.pathname === '/api/health') {
+    if (req.method === 'GET' && (url.pathname === '/api/health' || url.pathname === '/health')) {
       sendJson(res, 200, {
         ok: true,
         storage: journalStore.kind,
