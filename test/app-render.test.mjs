@@ -343,6 +343,50 @@ test('opening the app does not auto-create an empty diary when local files alrea
   assert.doesNotMatch(app.innerHTML, /今天，先写一点/);
 });
 
+test('fresh app does not save an empty today page before the user writes', async () => {
+  const { app, getFetchCalls } = await mountApp([]);
+
+  assert.match(app.innerHTML, /今天想记下什么？/);
+  assert.ok(!getFetchCalls().some((call) => call.method === 'POST' && call.url === '/api/journal-entry'));
+});
+
+test('blank today draft is discarded when returning to the cover', async () => {
+  const { app, listeners, getFetchCalls } = await mountApp([{
+    ...entries[0],
+    id: '2026-06-22',
+    firstRecordedAt: '2026-06-22T00:12:00.000Z',
+    body: '今天已经写过一篇。',
+  }]);
+  const startTarget = {
+    dataset: { action: 'start-today' },
+    closest(selector) {
+      return selector === '[data-action]' ? startTarget : null;
+    },
+  };
+  listeners.click({
+    target: startTarget,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await new Promise((resolveTick) => setTimeout(resolveTick, 10));
+
+  const coverTarget = {
+    dataset: { action: 'open-cover' },
+    closest(selector) {
+      return selector === '[data-action]' ? coverTarget : null;
+    },
+  };
+  listeners.click({
+    target: coverTarget,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await new Promise((resolveTick) => setTimeout(resolveTick, 10));
+
+  assert.doesNotMatch(app.innerHTML, /data-id="\d{4}-\d{2}-\d{2}-\d{6}/);
+  assert.ok(!getFetchCalls().some((call) => call.method === 'POST' && call.url === '/api/journal-entry'));
+});
+
 test('selected text toolbar only offers inline styles and comments', async () => {
   const { app, listeners } = await mountApp(entries);
 
@@ -1036,6 +1080,7 @@ test('entry page removes static notebook copy and renders a compact today status
 test('visual tokens use warm paper, sea-salt glass, and a calmer type scale', () => {
   const css = readFileSync(resolve('src/styles.css'), 'utf8');
 
+  assert.match(css, /font-family:\s*"Avenir Next"/);
   assert.match(css, /--paper:\s*#fbf6ec/);
   assert.match(css, /--wash:\s*linear-gradient\(180deg,\s*#fbf6ec/);
   assert.match(css, /--sea-salt:\s*#d7e6e4/);
@@ -1049,6 +1094,8 @@ test('visual tokens use warm paper, sea-salt glass, and a calmer type scale', ()
   assert.match(css, /\.calendar-heatmap/);
   assert.match(css, /\.month-revisit-card/);
   assert.match(css, /\.memory-card:hover/);
+  assert.match(css, /\.cover-note[\s\S]*border-radius:\s*8px/);
+  assert.match(css, /\.month-revisit-card[\s\S]*border-radius:\s*8px/);
   assert.match(css, /\.chip\.stuck/);
   assert.match(css, /\.chip\.relational/);
   assert.match(css, /\.chip\.pressure/);

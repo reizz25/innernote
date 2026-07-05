@@ -272,6 +272,61 @@ function isEmptyBodyHtml(value = '') {
     .trim();
 }
 
+const defaultEntryTitles = new Set(['', '今天想记下什么？', '今天发生了什么？']);
+
+function hasCheckedExercise(exercises = {}) {
+  return Object.values(exercises || {}).some((group) => (
+    group && typeof group === 'object' && Object.values(group).some(Boolean)
+  ));
+}
+
+function isBlankEntry(entry = {}) {
+  const prompts = normalizePrompts(entry.prompts || {});
+  const hasPromptText = [
+    prompts.energy,
+    prompts.metrics.weight,
+    prompts.metrics.sleep,
+    prompts.metrics.phone,
+    prompts.tomorrow.text,
+    ...(prompts.mood || []),
+    ...(prompts.todos || []).map((todo) => todo.text),
+  ].some((value) => String(value || '').trim());
+  const hasTodoState = (prompts.todos || []).some((todo) => todo.done && String(todo.text || '').trim());
+
+  return defaultEntryTitles.has(String(entry.title || '').trim())
+    && !String(entry.body || '').trim()
+    && isEmptyBodyHtml(entry.bodyHtml || '')
+    && !hasPromptText
+    && !hasTodoState
+    && !prompts.tomorrow.done
+    && !hasCheckedExercise(prompts.exercises)
+    && !String(entry.sideNotes || '').trim()
+    && !(entry.readResponse?.response || entry.readResponse?.summary)
+    && !(entry.comments || []).length
+    && !(entry.chatMessages || []).length
+    && !(entry.retainedConversations || []).length;
+}
+
+function discardBlankEntry(entryId = '') {
+  const entry = state.entries.find((item) => item.id === entryId);
+  if (!entry || !isBlankEntry(entry)) return false;
+
+  const wasSelected = state.selectedEntryId === entry.id;
+  state.entries = deleteEntryById(state.entries, entry.id).map(normalizeEntry);
+  if (wasSelected) {
+    state.selectedEntryId = state.entries[0]?.id || '';
+  }
+  refreshAutomaticSummaries();
+  state.backup = {
+    ...state.backup,
+    status: '空白页已丢弃',
+  };
+  saveState();
+
+  fetch(`/api/journal-entry?id=${encodeURIComponent(entry.id)}`, { method: 'DELETE' }).catch(() => {});
+  return true;
+}
+
 function selectedEntry() {
   return state.entries.find((entry) => entry.id === state.selectedEntryId) || state.entries[0];
 }
@@ -1449,6 +1504,17 @@ function scheduleJournalSave() {
 async function saveCurrentEntry(manual = true) {
   const entry = selectedEntry();
   if (!entry) return;
+  if (isBlankEntry(entry)) {
+    discardBlankEntry(entry.id);
+    if (!state.entries.length) state.view = 'cover';
+    saveState();
+    if (shouldRenderAfterSave(manual)) {
+      render();
+    } else {
+      setSaveStatus('空白页已丢弃');
+    }
+    return;
+  }
   try {
     const response = await fetch('/api/journal-entry', {
       method: 'POST',
@@ -1697,6 +1763,7 @@ function toggleEntryMenu(target) {
 }
 
 function selectEntry(id) {
+  if (id !== state.selectedEntryId) discardBlankEntry(state.selectedEntryId);
   state.selectedEntryId = id;
   state.selectedReviewId = '';
   state.view = 'entry';
@@ -1707,6 +1774,7 @@ function selectEntry(id) {
 
 function selectReview(id) {
   if (!state.summaries.some((summary) => summary.id === id)) return;
+  discardBlankEntry(state.selectedEntryId);
   state.selectedReviewId = id;
   state.view = 'review';
   ui.mobilePanel = 'main';
@@ -1715,7 +1783,6 @@ function selectReview(id) {
 }
 
 function startToday() {
-  const before = state.entries.length;
   const result = createEntryForDate(state.entries, new Date());
   state.entries = result.entries.map(normalizeEntry);
   state.selectedEntryId = result.entry.id;
@@ -1725,7 +1792,6 @@ function startToday() {
   refreshAutomaticSummaries();
   saveState();
   render();
-  if (state.entries.length !== before) saveCurrentEntry(false);
 }
 
 function quickNote() {
@@ -1748,6 +1814,7 @@ function quickNote() {
 }
 
 function openCover() {
+  discardBlankEntry(state.selectedEntryId);
   state.view = 'cover';
   state.selectedReviewId = '';
   ui.mobilePanel = 'main';
@@ -1756,13 +1823,29 @@ function openCover() {
 }
 
 function openLatest() {
+  discardBlankEntry(state.selectedEntryId);
   const latest = latestEntry();
-  if (latest) selectEntry(latest.id);
+  if (latest) {
+    selectEntry(latest.id);
+    return;
+  }
+  state.view = 'cover';
+  state.selectedEntryId = '';
+  saveState();
+  render();
 }
 
 function openMonth(month = '') {
+  discardBlankEntry(state.selectedEntryId);
   const latest = monthEntries(month)[0];
-  if (latest) selectEntry(latest.id);
+  if (latest) {
+    selectEntry(latest.id);
+    return;
+  }
+  state.view = 'cover';
+  state.selectedEntryId = '';
+  saveState();
+  render();
 }
 
 function toggleMobilePanel(panel = 'main') {
@@ -2496,10 +2579,6 @@ async function initializeApp() {
   const hasSession = await loadCurrentUser();
   if (!hasSession) return;
   await loadJournalFiles();
-  if (!state.entries.length) {
-    ensureToday();
-    await saveCurrentEntry(false);
-  }
   render();
   scheduleReminders();
 }
