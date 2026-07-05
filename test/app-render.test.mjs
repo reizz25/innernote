@@ -993,6 +993,41 @@ test('review sidebar shows saved weekly reviews by natural date range', async ()
   assert.doesNotMatch(app.innerHTML, /上周回顾|这个月的回顾|6 月的回顾|这一周/);
 });
 
+test('review sidebar accepts weekly type aliases and uses the saved range label', async () => {
+  const { app } = await mountApp([
+    {
+      ...entries[0],
+      id: '2026-07-06',
+      firstRecordedAt: '2026-07-06T01:32:00.000Z',
+      body: '最近这篇也算进本次回顾。',
+    },
+  ], {
+    summaries: [
+      {
+        id: 'week-2026-06-29',
+        type: 'weekly',
+        range: '2026-06-29 至 2026-07-06',
+        entryCount: 3,
+        summary: '这一段的主线不是要不要换工作这么简单。',
+        source: 'manual-review',
+      },
+      {
+        id: 'week-2026-06-22',
+        type: 'week',
+        range: '2026-06-22 至 2026-06-28',
+        entryCount: 4,
+        summary: '上一周回顾。',
+        source: 'review-file',
+      },
+    ],
+  });
+
+  const reviewLabels = [...app.innerHTML.matchAll(/<button class="review-link [^"]*"[^>]*>([^<]+)<\/button>/g)]
+    .map((match) => match[1]);
+  assert.deepEqual(reviewLabels, ['6 月 29 日 - 7 月 6 日', '6 月 22 日 - 6 月 28 日']);
+  assert.match(app.innerHTML, /data-action="select-review" data-id="week-2026-06-29"/);
+});
+
 test('sidebar defaults to every diary in reverse time order without archive filters', async () => {
   const { app } = await mountApp([
     {

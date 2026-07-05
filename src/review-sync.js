@@ -44,8 +44,14 @@ export function reviewSummariesFromPayload(payload = {}) {
     if (!summary?.id) throw httpError(400, 'summary.id is required.');
     return {
       ...summary,
-      type: summary.type || 'week',
+      type: normalizeReviewType(summary.type),
       createdAt: summary.createdAt || summary.generatedAt || new Date().toISOString(),
     };
   });
+}
+
+function normalizeReviewType(type) {
+  if (type === 'weekly' || type === 'weekly-review') return 'week';
+  if (type === 'monthly' || type === 'monthly-review') return 'month';
+  return type || 'week';
 }

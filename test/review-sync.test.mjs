@@ -39,6 +39,25 @@ test('reviewSummariesFromPayload accepts one summary or a summaries list', () =>
   }).map((summary) => summary.id), ['week-2026-06-29', 'month-2026-06']);
 });
 
+test('reviewSummariesFromPayload normalizes weekly summaries to week type', () => {
+  assert.deepEqual(reviewSummariesFromPayload({
+    summary: {
+      id: 'week-2026-06-29',
+      type: 'weekly',
+      summary: '一周回顾',
+      generatedAt: '2026-07-05T18:03:08Z',
+    },
+  }).map((summary) => ({
+    id: summary.id,
+    type: summary.type,
+    createdAt: summary.createdAt,
+  })), [{
+    id: 'week-2026-06-29',
+    type: 'week',
+    createdAt: '2026-07-05T18:03:08Z',
+  }]);
+});
+
 test('reviewSummariesFromPayload rejects empty or id-less payloads', () => {
   assert.throws(() => reviewSummariesFromPayload({}), /summary or summaries is required/);
   assert.throws(() => reviewSummariesFromPayload({ summary: { summary: '没有 id' } }), /summary.id is required/);
