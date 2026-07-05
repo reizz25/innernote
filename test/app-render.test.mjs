@@ -94,6 +94,10 @@ async function mountApp(entries, mountOptions = {}) {
         return selector === '.body-shell' ? mountOptions.bodyShell : null;
       },
     },
+    selection: {
+      hidden: false,
+      style: {},
+    },
   };
   const sideNotesInput = {
     value: '这里是我自己的旁注',
@@ -182,6 +186,7 @@ async function mountApp(entries, mountOptions = {}) {
     },
     querySelector(selector) {
       if (selector === '[data-side-notes]') return sideNotesInput;
+      if (selector === '[data-selection-toolbar]') return toolbarElements.selection;
       if (selector === '[data-insert-toolbar]') return toolbarElements.insert;
       if (selector === '[data-block-toolbar]') return toolbarElements.block;
       return selector === '#app' ? app : null;
@@ -557,6 +562,31 @@ test('block controls stay briefly while crossing the gap and then hide', async (
   assert.equal(toolbarElements.insert.classList.contains('visible'), false);
 });
 
+test('clicking the editor hides lingering insert and T block controls', async () => {
+  const { listeners, toolbarElements } = await mountApp(entries);
+  toolbarElements.block.classList.add('visible');
+  toolbarElements.insert.classList.add('visible');
+  toolbarElements.block.open = true;
+  toolbarElements.insert.open = true;
+  const editor = {
+    closest(selector) {
+      return selector === '.body-editor' ? editor : null;
+    },
+  };
+
+  listeners.mousedown({
+    target: editor,
+    preventDefault() {
+      throw new Error('plain editor clicks should keep their default behavior');
+    },
+  });
+
+  assert.equal(toolbarElements.block.classList.contains('visible'), false);
+  assert.equal(toolbarElements.insert.classList.contains('visible'), false);
+  assert.equal(toolbarElements.block.open, false);
+  assert.equal(toolbarElements.insert.open, false);
+});
+
 test('T block toolbar applies and toggles paragraph block formats', async () => {
   const { listeners, getExecCommandCalls } = await mountApp(entries);
 
@@ -624,6 +654,68 @@ test('clicking the same T block format restores normal paragraph', async () => {
   assert.deepEqual(getExecCommandCalls(), [
     ['formatBlock', false, 'p'],
   ]);
+});
+
+test('inline format controls stay open so a second click can toggle the style off', async () => {
+  const { listeners, getExecCommandCalls, toolbarElements } = await mountApp(entries, {
+    queryCommandState: { bold: true },
+  });
+  toolbarElements.selection.hidden = false;
+  const target = {
+    dataset: { action: 'format-bold' },
+    closest(selector) {
+      return selector === '[data-action]' ? target : null;
+    },
+  };
+
+  listeners.click({
+    target,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  listeners.click({
+    target,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+
+  assert.deepEqual(getExecCommandCalls(), [
+    ['bold', false, null],
+    ['bold', false, null],
+  ]);
+  assert.equal(toolbarElements.selection.hidden, false);
+});
+
+test('highlight and text color controls toggle back to the neutral style', async () => {
+  const { listeners, getExecCommandCalls, toolbarElements } = await mountApp(entries, {
+    queryCommandValue: {
+      hiliteColor: '#fff0a6',
+      foreColor: '#d84a4a',
+    },
+  });
+  toolbarElements.selection.hidden = false;
+  const clickAction = (dataset) => {
+    const target = {
+      dataset,
+      closest(selector) {
+        return selector === '[data-action]' ? target : null;
+      },
+    };
+    listeners.click({
+      target,
+      preventDefault() {},
+      stopPropagation() {},
+    });
+  };
+
+  clickAction({ action: 'format-highlight' });
+  clickAction({ action: 'format-color', color: '#d84a4a' });
+
+  assert.deepEqual(getExecCommandCalls(), [
+    ['hiliteColor', false, 'transparent'],
+    ['foreColor', false, '#34413d'],
+  ]);
+  assert.equal(toolbarElements.selection.hidden, false);
 });
 
 test('emotion picker uses diary-derived state words without decorative symbols', async () => {

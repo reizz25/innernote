@@ -18,6 +18,8 @@ let savedBodyRange = null;
 let cursorToolbarHideTimer = null;
 
 const CURSOR_TOOLBAR_HIDE_DELAY = 650;
+const HIGHLIGHT_COLOR = '#fff0a6';
+const DEFAULT_TEXT_COLOR = '#34413d';
 
 const ui = {
   pendingComment: null,
@@ -2070,26 +2072,53 @@ function selectedBodyText() {
   return selection.toString().trim();
 }
 
+function normalizeCssColor(value = '') {
+  const color = String(value || '').trim().toLowerCase();
+  if (!color) return '';
+  if (/^#[0-9a-f]{6}$/i.test(color)) return color;
+  if (/^#[0-9a-f]{3}$/i.test(color)) {
+    return `#${color.slice(1).split('').map((item) => item + item).join('')}`;
+  }
+  const rgb = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!rgb) return color;
+  return `#${rgb.slice(1, 4).map((part) => Number(part).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function commandColorValue(...commands) {
+  if (typeof document.queryCommandValue !== 'function') return '';
+  for (const command of commands) {
+    try {
+      const value = normalizeCssColor(document.queryCommandValue(command));
+      if (value) return value;
+    } catch {
+      // Browser support differs between hiliteColor and backColor.
+    }
+  }
+  return '';
+}
+
 function applyFormat(command) {
   restoreBodySelection();
   if (typeof document.execCommand !== 'function') return;
   if (command === 'highlight') {
-    const applied = document.execCommand('hiliteColor', false, '#fff0a6');
-    if (!applied) document.execCommand('backColor', false, '#fff0a6');
+    const currentColor = commandColorValue('hiliteColor', 'backColor');
+    const nextColor = currentColor === HIGHLIGHT_COLOR ? 'transparent' : HIGHLIGHT_COLOR;
+    const applied = document.execCommand('hiliteColor', false, nextColor);
+    if (!applied) document.execCommand('backColor', false, nextColor);
   } else {
     document.execCommand(command, false, null);
   }
   syncBodyEditor();
-  hideSelectionToolbar();
 }
 
 function applyTextColor(color) {
   if (!textColors.includes(color)) return;
   restoreBodySelection();
   if (typeof document.execCommand !== 'function') return;
-  document.execCommand('foreColor', false, color);
+  const currentColor = commandColorValue('foreColor');
+  const nextColor = currentColor === normalizeCssColor(color) ? DEFAULT_TEXT_COLOR : color;
+  document.execCommand('foreColor', false, nextColor);
   syncBodyEditor();
-  hideSelectionToolbar();
 }
 
 function normalizeBlockValue(value = '') {
@@ -2444,7 +2473,9 @@ function handleKeydown(event) {
 function handleMouseDown(event) {
   if (event.target.closest?.('[data-selection-toolbar], [data-insert-toolbar], [data-block-toolbar]')) {
     event.preventDefault();
+    return;
   }
+  hideCursorToolbars();
 }
 
 function handleSelectionChange() {
