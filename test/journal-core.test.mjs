@@ -245,7 +245,7 @@ test('generateMonthlySummary includes entries from the same month', () => {
   assert.match(summary.summary, /这个月|2 天/);
 });
 
-test('generateAutomaticSummaries creates only the last completed weekly summary', () => {
+test('generateAutomaticSummaries keeps saved reviews instead of creating a lightweight weekly summary', () => {
   const entries = [
     { id: '2026-06-01', body: '消息太多时我会自责，但散步有帮助。', prompts: {} },
     { id: '2026-06-03', body: '', prompts: {} },
@@ -253,12 +253,16 @@ test('generateAutomaticSummaries creates only the last completed weekly summary'
     { id: '2026-06-25', body: '今天也在处理消息，想把回复集中到固定窗口。', prompts: {} },
     { id: '2026-07-01', body: '本周还没结束，先不生成回顾。', prompts: {} },
   ];
+  const saved = [{
+    id: 'week-2026-06-01',
+    type: 'week',
+    summary: '这是 Codex 写回的正式回顾。',
+  }];
 
-  const summaries = generateAutomaticSummaries(entries, [], new Date('2026-07-02T12:00:00+08:00'));
+  const summaries = generateAutomaticSummaries(entries, saved, new Date('2026-07-02T12:00:00+08:00'));
 
-  assert.deepEqual(summaries.map((summary) => summary.id), ['week-2026-06-22']);
-  assert.equal(summaries[0].entryCount, 2);
-  assert.equal(summaries[0].range, '2026-06-22 至 2026-06-28');
+  assert.deepEqual(summaries, saved);
+  assert.doesNotMatch(JSON.stringify(summaries), /本周共记录|week-2026-06-22/);
 });
 
 test('generateAutomaticSummaries does not create summaries when nothing meaningful was written', () => {

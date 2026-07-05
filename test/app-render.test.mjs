@@ -944,7 +944,7 @@ test('start today creates another entry instead of limiting the day to one diary
   assert.match(app.innerHTML, /data-id="\d{4}-\d{2}-\d{2}-\d{6}/);
 });
 
-test('automatic review only shows the last completed week with its date range', async () => {
+test('review sidebar shows saved weekly reviews by natural date range', async () => {
   const { app } = await mountApp([
     {
       ...entries[0],
@@ -964,13 +964,33 @@ test('automatic review only shows the last completed week with its date range', 
       firstRecordedAt: '2026-06-24T00:12:00.000Z',
       body: '消息很多，我回复之后还是会自责。',
     },
-  ]);
+  ], {
+    summaries: [
+      {
+        id: 'week-2026-06-29',
+        type: 'week',
+        range: '2026-06-29 至 2026-07-05',
+        entryCount: 2,
+        summary: '这一周虽然只有两篇，但主线已经很清楚。',
+        source: 'codex-review',
+      },
+      {
+        id: 'week-2026-06-22',
+        type: 'week',
+        range: '2026-06-22 至 2026-06-28',
+        entryCount: 4,
+        summary: '这一周的主线是工作去向和表达边界。',
+        source: 'review-file',
+      },
+    ],
+  });
 
   const reviewLabels = [...app.innerHTML.matchAll(/<button class="review-link [^"]*"[^>]*>([^<]+)<\/button>/g)]
     .map((match) => match[1]);
-  assert.deepEqual(reviewLabels, ['上周回顾 · 6 月 22 日 - 6 月 28 日']);
+  assert.deepEqual(reviewLabels, ['6 月 29 日 - 7 月 5 日', '6 月 22 日 - 6 月 28 日']);
+  assert.match(app.innerHTML, /data-action="select-review" data-id="week-2026-06-29"/);
   assert.match(app.innerHTML, /data-action="select-review" data-id="week-2026-06-22"/);
-  assert.doesNotMatch(app.innerHTML, /这个月的回顾|6 月的回顾|这一周的回顾/);
+  assert.doesNotMatch(app.innerHTML, /上周回顾|这个月的回顾|6 月的回顾|这一周/);
 });
 
 test('sidebar defaults to every diary in reverse time order without archive filters', async () => {
@@ -995,7 +1015,7 @@ test('sidebar defaults to every diary in reverse time order without archive filt
   assert.match(app.innerHTML, /6 月 17 日[\s\S]*5 月 20 日/);
 });
 
-test('review links open the generated review in the main area', async () => {
+test('review links open saved Codex reviews even when the week has only two entries', async () => {
   const { app, listeners } = await mountApp([
     {
       ...entries[0],
@@ -1009,7 +1029,18 @@ test('review links open the generated review in the main area', async () => {
       firstRecordedAt: '2026-06-25T14:22:00.000Z',
       body: '今天也在处理消息，想把回复集中到固定窗口。',
     },
-  ]);
+  ], {
+    summaries: [{
+      id: 'week-2026-06-22',
+      type: 'week',
+      range: '2026-06-22 至 2026-06-28',
+      entryCount: 2,
+      summary: '虽然这周只写了两天，但主线已经很清楚：消息压力背后是可靠感和边界感的拉扯。',
+      patterns: ['消息和回复压力反复出现，容易触发自责或“不可靠”的解释。'],
+      nextActions: ['把回复集中到固定窗口，先保护一段自己的深度时间。'],
+      source: 'codex-review',
+    }],
+  });
 
   assert.match(app.innerHTML, /data-action="select-review" data-id="week-2026-06-22"/);
   const target = {
@@ -1025,8 +1056,8 @@ test('review links open the generated review in the main area', async () => {
   });
 
   assert.match(app.innerHTML, /<section class="paper review-paper"/);
-  assert.match(app.innerHTML, /上周回顾 · 6 月 22 日 - 6 月 28 日/);
-  assert.match(app.innerHTML, /本周共记录 2 天。/);
+  assert.match(app.innerHTML, /6 月 22 日 - 6 月 28 日/);
+  assert.match(app.innerHTML, /虽然这周只写了两天，但主线已经很清楚/);
   assert.match(app.innerHTML, /消息和回复压力反复出现/);
 });
 
@@ -1380,7 +1411,8 @@ test('fresh app opens from a diary cover with quick paths and local status', asy
   assert.doesNotMatch(app.innerHTML, /保存在本机/);
   assert.doesNotMatch(app.innerHTML, /这里是入口，不是任务面板/);
   assert.doesNotMatch(app.innerHTML, /不把你变成数据表/);
-  assert.match(app.innerHTML, /上周回顾 · 6 月 22 日 - 6 月 28 日/);
+  assert.match(app.innerHTML, /回顾生成后，会按日期放在这里。/);
+  assert.doesNotMatch(app.innerHTML, /上周回顾 · 6 月 22 日 - 6 月 28 日/);
   assert.match(app.innerHTML, /class="page-strip"/);
 });
 
