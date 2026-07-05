@@ -247,13 +247,16 @@ function escapeHtml(value = '') {
     .replaceAll("'", '&#039;');
 }
 
-function renderAccountBar() {
+function renderAccountMenu() {
   if (!state.user?.username) return '';
   return `
-    <div class="account-bar">
-      <span>${escapeHtml(state.user.username)}</span>
-      <button class="text-button" data-action="logout">退出</button>
-    </div>
+    <details class="account-menu">
+      <summary>${escapeHtml(state.user.username)}</summary>
+      <div class="account-menu-panel">
+        <button class="text-button" data-action="switch-account">切换账号</button>
+        <button class="text-danger-button" data-action="logout">退出</button>
+      </div>
+    </details>
   `;
 }
 
@@ -673,8 +676,6 @@ function renderCoverSidebar() {
         <div class="brand-mark"></div>
         <div>Inner Notes</div>
       </div>
-      ${renderAccountBar()}
-      <button class="primary-button" data-action="start-today">写今天这一页</button>
 
       <div class="side-label">记录日历</div>
       ${renderCalendarHeatmap()}
@@ -721,7 +722,6 @@ function renderMonthRevisitCards() {
   if (!months.length) {
     return '<p class="quiet-copy">还没有月份可以回看。先记录今天，这里会慢慢长出来。</p>';
   }
-  const todayMonth = dateKey(new Date()).slice(0, 7);
   return months.map((month) => {
     const entries = monthEntries(month);
     const mood = coverMoodStatus(entries);
@@ -749,7 +749,6 @@ function renderMonthRevisitCards() {
               <p>${escapeHtml(entrySummary(entry))}</p>
             </button>
           `).join('')}
-          ${month === todayMonth ? '<button class="page-card new-page-card memory-card soft-memory" data-action="start-today">写今天这一页</button>' : ''}
         </div>
       </article>
     `;
@@ -1329,6 +1328,7 @@ function render() {
   if (showCover) {
     app.innerHTML = `
       <div class="journal cover-mode">
+        ${renderAccountMenu()}
         ${renderCoverSidebar()}
         <main class="main cover-main">
           ${renderCoverPage()}
@@ -1340,6 +1340,7 @@ function render() {
 
   app.innerHTML = `
     <div class="journal mobile-show-${escapeHtml(mobilePanel)}">
+      ${renderAccountMenu()}
       <nav class="mobile-switcher" aria-label="移动端视图切换">
         <button class="${mobilePanel === 'menu' ? 'active' : ''}" data-action="toggle-mobile-panel" data-panel="menu">目录</button>
         <button class="${mobilePanel === 'main' ? 'active' : ''}" data-action="toggle-mobile-panel" data-panel="main">正文</button>
@@ -1350,8 +1351,6 @@ function render() {
           <div class="brand-mark"></div>
           <div>Inner Notes</div>
         </div>
-
-        ${renderAccountBar()}
 
         <button class="button sidebar-cover-link" data-action="open-cover">回到日记本</button>
 
@@ -2498,7 +2497,7 @@ function handleClick(event) {
   const action = target.dataset.action;
   const id = target.dataset.id;
 
-  if (['delete-entry', 'delete-retained', 'toggle-entry-menu', 'select-review', 'open-cover', 'open-latest', 'open-month', 'quick-note', 'toggle-mobile-panel', 'toggle-mood-picker', 'format-block', 'format-list', 'insert-callout', 'insert-divider', 'format-bold', 'format-italic', 'format-highlight', 'format-color', 'start-comment', 'submit-comment', 'cancel-comment', 'resolve-comment'].includes(action)) {
+  if (['delete-entry', 'delete-retained', 'toggle-entry-menu', 'select-review', 'open-cover', 'open-latest', 'open-month', 'quick-note', 'toggle-mobile-panel', 'toggle-mood-picker', 'format-block', 'format-list', 'insert-callout', 'insert-divider', 'format-bold', 'format-italic', 'format-highlight', 'format-color', 'start-comment', 'submit-comment', 'cancel-comment', 'resolve-comment', 'switch-account', 'logout'].includes(action)) {
     event.preventDefault();
     event.stopPropagation();
   }
@@ -2545,6 +2544,7 @@ function handleClick(event) {
   if (action === 'delete-retained') deleteRetained(id);
   if (action === 'backup-now') backupNow(true);
   if (action === 'enable-notifications') enableNotifications();
+  if (action === 'switch-account') logout();
   if (action === 'logout') logout();
 }
 

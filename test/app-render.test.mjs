@@ -1077,14 +1077,15 @@ test('entry page removes static notebook copy and renders a compact today status
   assert.match(app.innerHTML, /#平静/);
 });
 
-test('visual tokens use warm paper, sea-salt glass, and a calmer type scale', () => {
+test('visual tokens use an airy palette and quiet motion', () => {
   const css = readFileSync(resolve('src/styles.css'), 'utf8');
 
   assert.match(css, /font-family:\s*"Avenir Next"/);
-  assert.match(css, /--paper:\s*#fbf6ec/);
-  assert.match(css, /--wash:\s*linear-gradient\(180deg,\s*#fbf6ec/);
-  assert.match(css, /--sea-salt:\s*#d7e6e4/);
-  assert.match(css, /--apricot:\s*#f1d4b4/);
+  assert.match(css, /--paper:\s*#fbfcf8/);
+  assert.match(css, /--wash:\s*linear-gradient\(180deg,\s*#fbfcf8/);
+  assert.match(css, /--mint:\s*#7fc7a2/);
+  assert.match(css, /--sky:\s*#a9d8f2/);
+  assert.match(css, /--lemon:\s*#f4e7a1/);
   assert.match(css, /--fs-hero:\s*28px/);
   assert.match(css, /--fs-body:\s*16px/);
   assert.match(css, /--fs-ui:\s*13px/);
@@ -1096,6 +1097,8 @@ test('visual tokens use warm paper, sea-salt glass, and a calmer type scale', ()
   assert.match(css, /\.memory-card:hover/);
   assert.match(css, /\.cover-note[\s\S]*border-radius:\s*8px/);
   assert.match(css, /\.month-revisit-card[\s\S]*border-radius:\s*8px/);
+  assert.match(css, /\.memory-card::before[\s\S]*opacity:\s*0\.14/);
+  assert.match(css, /transition:\s*transform 420ms cubic-bezier/);
   assert.match(css, /\.chip\.stuck/);
   assert.match(css, /\.chip\.relational/);
   assert.match(css, /\.chip\.pressure/);
@@ -1144,8 +1147,14 @@ test('cover entrance uses a sidebar timeline with direct month revisit cards', a
   assert.match(app.innerHTML, /class="cover-page"/);
   assert.match(app.innerHTML, /class="journal cover-mode/);
   assert.match(app.innerHTML, /class="cover-sidebar"/);
+  assert.match(app.innerHTML, /class="account-menu"/);
+  assert.doesNotMatch(app.innerHTML, /class="account-bar"/);
+  assert.match(app.innerHTML, /<summary[^>]*>reizz<\/summary>/);
+  assert.match(app.innerHTML, /data-action="switch-account"[\s\S]*切换账号/);
+  assert.match(app.innerHTML, /data-action="logout"[\s\S]*退出/);
   assert.doesNotMatch(app.innerHTML, /<aside class="right-panel">/);
   assert.match(app.innerHTML, /记录今天/);
+  assert.equal((app.innerHTML.match(/data-action="start-today"/g) || []).length, 1);
   assert.doesNotMatch(app.innerHTML, /data-action="quick-note"/);
   assert.doesNotMatch(app.innerHTML, /继续上一页/);
   assert.doesNotMatch(app.innerHTML, /保存在本机/);
@@ -1222,8 +1231,11 @@ test('fresh app opens from a diary cover with quick paths and local status', asy
   assert.match(app.innerHTML, /class="cover-page"/);
   assert.match(app.innerHTML, /class="journal cover-mode/);
   assert.match(app.innerHTML, /class="cover-sidebar"/);
+  assert.match(app.innerHTML, /class="account-menu"/);
+  assert.doesNotMatch(app.innerHTML, /class="account-bar"/);
   assert.doesNotMatch(app.innerHTML, /<aside class="right-panel">/);
   assert.match(app.innerHTML, /data-action="start-today"[\s\S]*写今天这一页/);
+  assert.equal((app.innerHTML.match(/data-action="start-today"/g) || []).length, 1);
   assert.doesNotMatch(app.innerHTML, /data-action="quick-note"/);
   assert.doesNotMatch(app.innerHTML, /继续上一页/);
   assert.doesNotMatch(app.innerHTML, /最近一页/);
