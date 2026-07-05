@@ -1045,8 +1045,10 @@ test('visual tokens use warm paper, sea-salt glass, and a calmer type scale', ()
   assert.match(css, /--fs-ui:\s*13px/);
   assert.match(css, /grid-template-columns:\s*340px minmax\(640px,\s*1fr\) 320px/);
   assert.match(css, /\.journal\.cover-mode/);
-  assert.match(css, /\.month-shelf-row/);
-  assert.match(css, /\.page-strip/);
+  assert.match(css, /\.cover-sidebar/);
+  assert.match(css, /\.calendar-heatmap/);
+  assert.match(css, /\.month-revisit-card/);
+  assert.match(css, /\.memory-card:hover/);
   assert.match(css, /\.chip\.stuck/);
   assert.match(css, /\.chip\.relational/);
   assert.match(css, /\.chip\.pressure/);
@@ -1054,7 +1056,7 @@ test('visual tokens use warm paper, sea-salt glass, and a calmer type scale', ()
   assert.match(css, /backdrop-filter:\s*blur\(22px\)/);
 });
 
-test('cover entrance shows month notebook shelves and long-range analysis', async () => {
+test('cover entrance uses a sidebar timeline with direct month revisit cards', async () => {
   const { app, listeners } = await mountApp([
     {
       ...entries[0],
@@ -1094,21 +1096,22 @@ test('cover entrance shows month notebook shelves and long-range analysis', asyn
 
   assert.match(app.innerHTML, /class="cover-page"/);
   assert.match(app.innerHTML, /class="journal cover-mode/);
-  assert.doesNotMatch(app.innerHTML, /<aside class="sidebar">/);
+  assert.match(app.innerHTML, /class="cover-sidebar"/);
   assert.doesNotMatch(app.innerHTML, /<aside class="right-panel">/);
   assert.match(app.innerHTML, /记录今天/);
   assert.doesNotMatch(app.innerHTML, /data-action="quick-note"/);
   assert.doesNotMatch(app.innerHTML, /继续上一页/);
   assert.doesNotMatch(app.innerHTML, /保存在本机/);
+  assert.match(app.innerHTML, /记录日历/);
+  assert.match(app.innerHTML, /class="calendar-heatmap"/);
+  assert.match(app.innerHTML, /按月回看/);
   assert.match(app.innerHTML, /2026 年 7 月/);
   assert.match(app.innerHTML, /2026 年 6 月/);
   assert.match(app.innerHTML, /data-action="open-month" data-month="2026-06"/);
-  assert.match(app.innerHTML, /class="month-shelf-row/);
-  assert.match(app.innerHTML, /class="month-cover/);
-  assert.match(app.innerHTML, /class="page-strip"/);
+  assert.match(app.innerHTML, /class="month-revisit-card memory-card/);
   assert.match(app.innerHTML, /data-action="select-entry" data-id="2026-06-24"/);
-  assert.match(app.innerHTML, /class="page-card new-page-card"[\s\S]*写今天这一页/);
-  assert.match(app.innerHTML, /长期分析/);
+  assert.match(app.innerHTML, /过去的今天/);
+  assert.match(app.innerHTML, /class="memory-card/);
   assert.match(app.innerHTML, /睡眠趋势/);
   assert.match(app.innerHTML, /最近状态/);
   assert.match(app.innerHTML, /记录时间/);
@@ -1171,13 +1174,14 @@ test('fresh app opens from a diary cover with quick paths and local status', asy
 
   assert.match(app.innerHTML, /class="cover-page"/);
   assert.match(app.innerHTML, /class="journal cover-mode/);
-  assert.doesNotMatch(app.innerHTML, /<aside class="sidebar">/);
+  assert.match(app.innerHTML, /class="cover-sidebar"/);
   assert.doesNotMatch(app.innerHTML, /<aside class="right-panel">/);
   assert.match(app.innerHTML, /data-action="start-today"[\s\S]*写今天这一页/);
   assert.doesNotMatch(app.innerHTML, /data-action="quick-note"/);
   assert.doesNotMatch(app.innerHTML, /继续上一页/);
   assert.doesNotMatch(app.innerHTML, /最近一页/);
   assert.match(app.innerHTML, /好久没有写日记了/);
+  assert.match(app.innerHTML, /过去的今天/);
   assert.match(app.innerHTML, /未完成 todo/);
   assert.match(app.innerHTML, /补一下上周回顾/);
   assert.doesNotMatch(app.innerHTML, /保存在本机/);

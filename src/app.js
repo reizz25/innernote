@@ -556,10 +556,115 @@ function renderArchive() {
   `;
 }
 
-function renderMonthBooks() {
+function renderCalendarHeatmap() {
+  const entriesByDay = state.entries.reduce((result, entry) => {
+    const key = entryDayKey(entry.id);
+    if (!key) return result;
+    result[key] = entry;
+    return result;
+  }, {});
+  const today = dateKey(new Date());
+  const days = Array.from({ length: 35 }, (_, index) => addDaysToKey(today, index - 34));
+
+  return `
+    <div class="calendar-heatmap" aria-label="最近 35 天记录日历">
+      ${['一', '二', '三', '四', '五', '六', '日'].map((day) => `<span class="heat-weekday">${day}</span>`).join('')}
+      ${days.map((day) => {
+        const entry = entriesByDay[day];
+        const bodyLength = String(entry?.body || '').trim().length;
+        const level = entry ? Math.min(4, Math.max(1, Math.ceil(bodyLength / 28))) : 0;
+        const label = entry ? `${formatShortDate(day)} ${entrySummary(entry)}` : `${formatShortDate(day)} 没有记录`;
+        return entry
+          ? `<button class="heat-day level-${level}" data-action="select-entry" data-id="${escapeHtml(entry.id)}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"></button>`
+          : `<span class="heat-day level-0" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}"></span>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderCoverMonthNav() {
   const months = groupedMonths();
   if (!months.length) {
-    return '<p class="quiet-copy">还没有日记本。先记录今天，这里会慢慢长出来。</p>';
+    return '<p class="quiet-copy">还没有记录。先写今天这一页。</p>';
+  }
+  return months.map((month) => `
+    <button class="month-nav-item" data-action="open-month" data-month="${escapeHtml(month)}">
+      <span>${escapeHtml(monthTitle(month))}</span>
+      <em>${escapeHtml(monthEntries(month).length)} 篇</em>
+    </button>
+  `).join('');
+}
+
+function renderTagNav() {
+  const counts = new Map();
+  state.entries.forEach((entry) => {
+    normalizePrompts(entry.prompts || {}).mood.forEach((mood) => {
+      counts.set(mood, (counts.get(mood) || 0) + 1);
+    });
+  });
+  const tags = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!tags.length) return '<p class="quiet-copy">标签会从你的状态里长出来。</p>';
+  return `
+    <div class="tag-nav">
+      ${tags.map(([tag, count]) => `<span class="tag-pill ${escapeHtml(moodKindByName[tag] || 'custom')}">#${escapeHtml(tag)} <em>${count}</em></span>`).join('')}
+    </div>
+  `;
+}
+
+function renderCoverSidebar() {
+  return `
+    <aside class="cover-sidebar">
+      <div class="brand" aria-label="Inner Notes">
+        <div class="brand-mark"></div>
+        <div>Inner Notes</div>
+      </div>
+      ${renderAccountBar()}
+      <button class="primary-button" data-action="start-today">写今天这一页</button>
+
+      <div class="side-label">记录日历</div>
+      ${renderCalendarHeatmap()}
+
+      <div class="side-label">按月回看</div>
+      <div class="month-nav">${renderCoverMonthNav()}</div>
+
+      <div class="side-label">标签</div>
+      ${renderTagNav()}
+
+      <div class="side-label">最近回顾</div>
+      <div class="review-list">${renderReviewLinks()}</div>
+    </aside>
+  `;
+}
+
+function sameMonthDay(entry, monthDay) {
+  return entryDayKey(entry.id).slice(5) === monthDay;
+}
+
+function renderMemoryCards() {
+  const today = dateKey(new Date());
+  const monthDay = today.slice(5);
+  const memories = entriesForArchiveFilter()
+    .filter((entry) => sameMonthDay(entry, monthDay) && entryDayKey(entry.id) !== today)
+    .slice(0, 2);
+  const fallback = entriesForArchiveFilter().filter((entry) => entryDayKey(entry.id) !== today).slice(0, 2);
+  const items = memories.length ? memories : fallback;
+  if (!items.length) {
+    return '<p class="quiet-copy">多写几天，这里会出现可以回看的片段。</p>';
+  }
+
+  return items.map((entry) => `
+    <button class="memory-card" data-action="select-entry" data-id="${escapeHtml(entry.id)}">
+      <span>${escapeHtml(memories.length ? '过去的今天' : '最近回看')}</span>
+      <strong>${escapeHtml(formatShortDate(entry.id))} ${escapeHtml(weekdayLabel(entry.id))}</strong>
+      <p>${escapeHtml(entrySummary(entry))}</p>
+    </button>
+  `).join('');
+}
+
+function renderMonthRevisitCards() {
+  const months = groupedMonths();
+  if (!months.length) {
+    return '<p class="quiet-copy">还没有月份可以回看。先记录今天，这里会慢慢长出来。</p>';
   }
   const todayMonth = dateKey(new Date()).slice(0, 7);
   return months.map((month) => {
@@ -574,23 +679,24 @@ function renderMonthBooks() {
       phone ? `<span>手机 ${escapeHtml(phone)}h</span>` : '',
     ].filter(Boolean).join('');
     return `
-      <section class="month-shelf-row ${colorClass}">
-        <button class="month-cover" data-action="open-month" data-month="${escapeHtml(month)}" aria-label="打开 ${escapeHtml(monthTitle(month))}">
+      <article class="month-revisit">
+        <button class="month-revisit-card memory-card ${colorClass}" data-action="open-month" data-month="${escapeHtml(month)}" aria-label="打开 ${escapeHtml(monthTitle(month))}">
+          <span>按月回看</span>
           <strong>${escapeHtml(monthTitle(month))}</strong>
-          <em>${escapeHtml(entries.length)} 篇记录</em>
+          <p>${escapeHtml(entries.length)} 篇记录${mood ? ` · ${mood}` : ''}</p>
           <div class="book-stats">${stats}</div>
         </button>
         <div class="page-strip" aria-label="${escapeHtml(monthTitle(month))}的日记页">
-          ${entries.map((entry) => `
-            <button class="page-card" data-action="select-entry" data-id="${escapeHtml(entry.id)}">
+          ${entries.slice(0, 4).map((entry) => `
+            <button class="page-card memory-card soft-memory" data-action="select-entry" data-id="${escapeHtml(entry.id)}">
               <span>${escapeHtml(formatShortDate(entry.id))} ${escapeHtml(weekdayLabel(entry.id))}</span>
               <time>${escapeHtml(formatTime(entry.firstRecordedAt))}</time>
               <p>${escapeHtml(entrySummary(entry))}</p>
             </button>
           `).join('')}
-          ${month === todayMonth ? '<button class="page-card new-page-card" data-action="start-today">写今天这一页</button>' : ''}
+          ${month === todayMonth ? '<button class="page-card new-page-card memory-card soft-memory" data-action="start-today">写今天这一页</button>' : ''}
         </div>
-      </section>
+      </article>
     `;
   }).join('');
 }
@@ -600,16 +706,24 @@ function renderCoverPage() {
   const todos = unfinishedTodos(3);
   return `
     <section class="cover-page">
-      ${renderAccountBar()}
       <div class="cover-kicker">Inner Notes</div>
-      <h1>翻开哪一本？</h1>
-      <p class="cover-intro">每个月像一本日记本。想写今天，就直接落笔；想回头看，就翻到那个月。</p>
+      <h1>今天想记下什么？</h1>
+      <p class="cover-intro">先写今天，也可以从日历、月份和回顾里翻回某一段时间。</p>
       <div class="cover-actions">
         <button class="primary-button cover-primary" data-action="start-today" aria-label="记录今天">写今天这一页</button>
       </div>
-      <div class="cover-desk">
+      <section class="cover-section">
+        <div class="section-head">
+          <strong>过去的今天</strong>
+          <span>把旧的一页重新点亮</span>
+        </div>
+        <div class="memory-grid">
+          ${renderMemoryCards()}
+        </div>
+      </section>
+      <section class="cover-desk">
         ${lastReview ? `
-          <button class="cover-note review-note" data-action="select-review" data-id="${escapeHtml(lastReview.id)}">
+          <button class="cover-note review-note memory-card" data-action="select-review" data-id="${escapeHtml(lastReview.id)}">
             <span>上周回顾</span>
             <strong>${escapeHtml(reviewLabel(lastReview))}</strong>
           </button>
@@ -618,19 +732,25 @@ function renderCoverPage() {
           <span>未完成 todo</span>
           ${todos.length ? todos.map(({ todo }) => `<strong>${escapeHtml(todo.text)}</strong>`).join('') : '<strong>没有未完成事项</strong>'}
         </div>
-      </div>
-      <div class="month-shelf">
-        ${renderMonthBooks()}
-      </div>
+      </section>
       <section class="analysis-strip">
         <div>
-          <strong>长期分析</strong>
+          <strong>本月</strong>
           <span>看睡眠、状态和记录节奏的慢变化。</span>
         </div>
         <div class="analysis-cards">
           <article><strong>睡眠趋势</strong><p>${escapeHtml(averageMetric(state.entries, 'sleep') || '再多写几天')}</p></article>
           <article><strong>最近状态</strong><p>${escapeHtml(coverMoodStatus(state.entries))}</p></article>
           <article><strong>记录时间</strong><p>${escapeHtml(state.entries[0] ? formatTime(state.entries[0].firstRecordedAt) : '还没有')}</p></article>
+        </div>
+      </section>
+      <section class="cover-section">
+        <div class="section-head">
+          <strong>按月回看</strong>
+          <span>每个月像一册生活切片</span>
+        </div>
+        <div class="month-revisit-list">
+          ${renderMonthRevisitCards()}
         </div>
       </section>
     </section>
@@ -1154,6 +1274,7 @@ function render() {
   if (showCover) {
     app.innerHTML = `
       <div class="journal cover-mode">
+        ${renderCoverSidebar()}
         <main class="main cover-main">
           ${renderCoverPage()}
         </main>
