@@ -19,7 +19,7 @@ let cursorToolbarHideTimer = null;
 
 const CURSOR_TOOLBAR_HIDE_DELAY = 650;
 const HIGHLIGHT_COLOR = '#fff0a6';
-const DEFAULT_TEXT_COLOR = '#34413d';
+const DEFAULT_TEXT_COLOR = '#24312c';
 
 const ui = {
   pendingComment: null,

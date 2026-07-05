@@ -4,6 +4,35 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
+const NativeDate = Date;
+const DEFAULT_TEST_NOW = new NativeDate('2026-07-05T12:00:00.000Z');
+
+function installTestDate(now = DEFAULT_TEST_NOW) {
+  const fixedNow = new NativeDate(now);
+
+  global.Date = class TestDate extends NativeDate {
+    constructor(...args) {
+      if (args.length === 0) {
+        super(fixedNow.getTime());
+        return;
+      }
+      super(...args);
+    }
+
+    static now() {
+      return fixedNow.getTime();
+    }
+
+    static parse(value) {
+      return NativeDate.parse(value);
+    }
+
+    static UTC(...args) {
+      return NativeDate.UTC(...args);
+    }
+  };
+}
+
 function makeStorage(initialValues = {}) {
   const values = new Map(Object.entries(initialValues).map(([key, value]) => [key, String(value)]));
   return {
@@ -30,6 +59,8 @@ function makeJsonResponse(payload, ok = true, status = 200) {
 }
 
 async function mountApp(entries, mountOptions = {}) {
+  installTestDate(mountOptions.now);
+
   let renderedHtml = '';
   let renderCount = 0;
   let activeElement = null;
@@ -713,7 +744,7 @@ test('highlight and text color controls toggle back to the neutral style', async
 
   assert.deepEqual(getExecCommandCalls(), [
     ['hiliteColor', false, 'transparent'],
-    ['foreColor', false, '#34413d'],
+    ['foreColor', false, '#24312c'],
   ]);
   assert.equal(toolbarElements.selection.hidden, false);
 });
@@ -1174,13 +1205,21 @@ test('visual tokens use an airy palette and quiet motion', () => {
 
   assert.match(css, /font-family:\s*"Avenir Next"/);
   assert.match(css, /--paper:\s*#fbfcf8/);
+  assert.match(css, /--ink:\s*#17231f/);
+  assert.match(css, /--body-ink:\s*#24312c/);
+  assert.match(css, /--muted:\s*#5f6d68/);
+  assert.match(css, /--faint:\s*#7f8d88/);
   assert.match(css, /--wash:\s*linear-gradient\(180deg,\s*#fbfcf8/);
   assert.match(css, /--mint:\s*#7fc7a2/);
   assert.match(css, /--sky:\s*#a9d8f2/);
   assert.match(css, /--lemon:\s*#f4e7a1/);
+  assert.match(css, /--leaf:\s*#34745d/);
   assert.match(css, /--fs-hero:\s*28px/);
   assert.match(css, /--fs-body:\s*16px/);
   assert.match(css, /--fs-ui:\s*13px/);
+  assert.match(css, /\.primary-button[\s\S]*background:\s*linear-gradient\(180deg,\s*#34745d,\s*#285f4b\)/);
+  assert.match(css, /\.button\.primary[\s\S]*color:\s*#265845/);
+  assert.match(css, /\.memory-grid > \.memory-card p[\s\S]*color:\s*#4f5e58/);
   assert.match(css, /grid-template-columns:\s*340px minmax\(640px,\s*1fr\) 320px/);
   assert.match(css, /\.journal\.cover-mode/);
   assert.match(css, /\.cover-sidebar/);
