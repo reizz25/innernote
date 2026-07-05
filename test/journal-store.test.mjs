@@ -14,7 +14,7 @@ function createFakeDb() {
   return {
     async query(sql, params = []) {
       const cleanSql = sql.trim();
-      if (cleanSql.includes('CREATE TABLE IF NOT EXISTS') || cleanSql.startsWith('ALTER TABLE') || cleanSql.startsWith('UPDATE ') || cleanSql.startsWith('DO $$')) return { rows: [] };
+      if (cleanSql.includes('CREATE TABLE IF NOT EXISTS')) return { rows: [] };
       if (sql.startsWith('SELECT id, username, password_hash FROM users WHERE username')) {
         const user = users.get(params[0]);
         return { rows: user ? [user] : [] };
@@ -35,11 +35,13 @@ function createFakeDb() {
         return { rows: session ? [{ id: session.user_id, username: session.username }] : [] };
       }
       if (sql.startsWith('DELETE FROM user_sessions')) return { rows: [] };
-      if (sql.startsWith('INSERT INTO journal_entries')) {
+      if (cleanSql.startsWith('INSERT INTO journal_entries_v2') && cleanSql.includes('SELECT $1')) return { rows: [] };
+      if (cleanSql.startsWith('INSERT INTO review_summaries_v2') && cleanSql.includes('SELECT $1')) return { rows: [] };
+      if (sql.startsWith('INSERT INTO journal_entries_v2')) {
         entries.set(key(params[0], params[1]), params[2]);
         return { rows: [] };
       }
-      if (sql.startsWith('SELECT entry FROM journal_entries')) {
+      if (sql.startsWith('SELECT entry FROM journal_entries_v2')) {
         return {
           rows: [...entries.entries()]
             .filter(([entryKey]) => entryKey.startsWith(`${params[0] || 'default'}:`))
@@ -47,11 +49,11 @@ function createFakeDb() {
             .map(([, entry]) => ({ entry })),
         };
       }
-      if (sql.startsWith('DELETE FROM journal_entries')) {
+      if (sql.startsWith('DELETE FROM journal_entries_v2')) {
         const deleted = entries.delete(key(params[0], params[1]));
         return { rowCount: deleted ? 1 : 0, rows: [] };
       }
-      if (sql.startsWith('SELECT summary FROM review_summaries')) return { rows: [] };
+      if (sql.startsWith('SELECT summary FROM review_summaries_v2')) return { rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
     },
   };

@@ -22,15 +22,18 @@ function createFakeDb() {
     async query(sql, params = []) {
       queries.push({ sql, params });
       const cleanSql = sql.trim();
-      if (cleanSql.includes('CREATE TABLE IF NOT EXISTS') || cleanSql.startsWith('ALTER TABLE') || cleanSql.startsWith('UPDATE ') || cleanSql.startsWith('DO $$')) {
+      if (cleanSql.includes('CREATE TABLE IF NOT EXISTS')) {
         return { rows: [] };
       }
-      if (sql.startsWith('INSERT INTO journal_entries')) {
+      if (cleanSql.startsWith('INSERT INTO journal_entries_v2') && cleanSql.includes('SELECT $1')) {
+        return { rows: [] };
+      }
+      if (sql.startsWith('INSERT INTO journal_entries_v2')) {
         const [userId, id, entry] = params;
         entries.set(key(userId, id), entry);
         return { rows: [] };
       }
-      if (sql.startsWith('SELECT entry FROM journal_entries')) {
+      if (sql.startsWith('SELECT entry FROM journal_entries_v2')) {
         const [userId] = params;
         return {
           rows: [...entries.entries()]
@@ -39,17 +42,20 @@ function createFakeDb() {
             .map(([, entry]) => ({ entry })),
         };
       }
-      if (sql.startsWith('DELETE FROM journal_entries')) {
+      if (sql.startsWith('DELETE FROM journal_entries_v2')) {
         const [userId, id] = params;
         const deleted = entries.delete(key(userId, id));
         return { rowCount: deleted ? 1 : 0, rows: [] };
       }
-      if (sql.startsWith('INSERT INTO review_summaries')) {
+      if (cleanSql.startsWith('INSERT INTO review_summaries_v2') && cleanSql.includes('SELECT $1')) {
+        return { rows: [] };
+      }
+      if (sql.startsWith('INSERT INTO review_summaries_v2')) {
         const [userId, id, type, summary] = params;
         summaries.set(key(userId, id), { ...summary, type });
         return { rows: [] };
       }
-      if (sql.startsWith('SELECT summary FROM review_summaries')) {
+      if (sql.startsWith('SELECT summary FROM review_summaries_v2')) {
         const [userId] = params;
         return {
           rows: [...summaries.entries()]
@@ -69,8 +75,8 @@ test('ensureJournalSchema creates journal and review tables', async () => {
   await ensureJournalSchema(db, { defaultUserId: 'user-a' });
 
   assert.ok(db.queries.length >= 2);
-  assert.match(db.queries[0].sql, /CREATE TABLE IF NOT EXISTS journal_entries/);
-  assert.match(db.queries[1].sql, /CREATE TABLE IF NOT EXISTS review_summaries/);
+  assert.match(db.queries[0].sql, /CREATE TABLE IF NOT EXISTS journal_entries_v2/);
+  assert.match(db.queries[1].sql, /CREATE TABLE IF NOT EXISTS review_summaries_v2/);
 });
 
 test('journal entry db helpers save, list, and delete entries', async () => {
