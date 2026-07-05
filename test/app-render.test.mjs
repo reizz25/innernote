@@ -118,6 +118,9 @@ async function mountApp(entries, mountOptions = {}) {
   });
   global.fetch = async (url, requestOptions = {}) => {
     fetchCalls.push({ url: String(url), method: requestOptions.method || 'GET' });
+    if (url === '/api/me') {
+      return makeJsonResponse({ ok: true, user: { username: 'reizz' } });
+    }
     if (url === '/api/journals') {
       if (mountOptions.journalsFail) {
         return makeJsonResponse({ ok: false, error: 'local files unavailable' }, false, 500);
@@ -146,6 +149,9 @@ async function mountApp(entries, mountOptions = {}) {
         model: 'test-model',
       });
     }
+    if (url === '/api/logout' && requestOptions.method === 'POST') {
+      return makeJsonResponse({ ok: true });
+    }
     return makeJsonResponse({ ok: false, error: `Unhandled fetch ${url}` }, false, 404);
   };
   global.window = {
@@ -165,6 +171,9 @@ async function mountApp(entries, mountOptions = {}) {
     confirm() {
       confirmCount += 1;
       return Boolean(mountOptions.confirmDeletes);
+    },
+    location: {
+      assign() {},
     },
   };
   global.document = {

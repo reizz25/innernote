@@ -8,22 +8,47 @@ import { createJournalStore, normalizePostgresConnectionString } from '../src/jo
 
 function createFakeDb() {
   const entries = new Map();
+  const users = new Map();
+  const sessions = new Map();
+  const key = (userId, id) => `${userId || 'default'}:${id}`;
   return {
     async query(sql, params = []) {
-      if (sql.includes('CREATE TABLE IF NOT EXISTS')) return { rows: [] };
+      const cleanSql = sql.trim();
+      if (cleanSql.includes('CREATE TABLE IF NOT EXISTS') || cleanSql.startsWith('ALTER TABLE') || cleanSql.startsWith('UPDATE ') || cleanSql.startsWith('DO $$')) return { rows: [] };
+      if (sql.startsWith('SELECT id, username, password_hash FROM users WHERE username')) {
+        const user = users.get(params[0]);
+        return { rows: user ? [user] : [] };
+      }
+      if (sql.startsWith('INSERT INTO users')) {
+        const [id, username, passwordHash] = params;
+        const user = { id, username, password_hash: passwordHash };
+        users.set(username, user);
+        return { rows: [{ id, username }] };
+      }
+      if (sql.startsWith('INSERT INTO user_sessions')) {
+        const [id, userId] = params;
+        sessions.set(id, { id, user_id: userId, username: [...users.values()].find((user) => user.id === userId)?.username });
+        return { rows: [{ id }] };
+      }
+      if (sql.startsWith('SELECT users.id, users.username FROM user_sessions')) {
+        const session = sessions.get(params[0]);
+        return { rows: session ? [{ id: session.user_id, username: session.username }] : [] };
+      }
+      if (sql.startsWith('DELETE FROM user_sessions')) return { rows: [] };
       if (sql.startsWith('INSERT INTO journal_entries')) {
-        entries.set(params[0], params[1]);
+        entries.set(key(params[0], params[1]), params[2]);
         return { rows: [] };
       }
       if (sql.startsWith('SELECT entry FROM journal_entries')) {
         return {
           rows: [...entries.entries()]
+            .filter(([entryKey]) => entryKey.startsWith(`${params[0] || 'default'}:`))
             .sort((a, b) => b[0].localeCompare(a[0]))
             .map(([, entry]) => ({ entry })),
         };
       }
       if (sql.startsWith('DELETE FROM journal_entries')) {
-        const deleted = entries.delete(params[0]);
+        const deleted = entries.delete(key(params[0], params[1]));
         return { rowCount: deleted ? 1 : 0, rows: [] };
       }
       if (sql.startsWith('SELECT summary FROM review_summaries')) return { rows: [] };
@@ -54,14 +79,15 @@ test('createJournalStore uses database storage when DATABASE_URL is configured',
   const store = await createJournalStore({
     journalRoot: '/unused',
     reviewRoot: '/unused',
-    env: { DATABASE_URL: 'postgres://example' },
+    env: { DATABASE_URL: 'postgres://example', INITIAL_USERNAME: 'reizz', INITIAL_PASSWORD: 'test-password-123' },
     dbFactory: async () => db,
   });
 
   assert.equal(store.kind, 'postgres');
-  await store.saveEntry({ id: '2026-07-03', prompts: {}, body: '部署时写进数据库。' });
-  assert.deepEqual((await store.readEntries()).map((entry) => entry.id), ['2026-07-03']);
-  assert.deepEqual(await store.deleteEntry('2026-07-03'), { markdownDeleted: false, jsonDeleted: true });
+  const user = await store.auth.login('reizz', 'test-password-123');
+  await store.saveEntry(user.id, { id: '2026-07-03', prompts: {}, body: '部署时写进数据库。' });
+  assert.deepEqual((await store.readEntries(user.id)).map((entry) => entry.id), ['2026-07-03']);
+  assert.deepEqual(await store.deleteEntry(user.id, '2026-07-03'), { markdownDeleted: false, jsonDeleted: true });
 });
 
 test('normalizePostgresConnectionString keeps sslmode=require compatible with self-signed gateways', () => {

@@ -14,5 +14,15 @@ test('server exposes protected review summary sync route', async () => {
 
   assert.match(source, /url\.pathname === '\/api\/review-summaries'/);
   assert.match(source, /authorizeReviewSync\(req\.headers/);
-  assert.match(source, /journalStore\.saveSummaries\(summaries\)/);
+  assert.match(source, /journalStore\.saveSummaries\(user\.id, summaries\)/);
+});
+
+test('server exposes login, register, logout, and current user routes', async () => {
+  const source = await readFile(new URL('../server.mjs', import.meta.url), 'utf8');
+
+  assert.match(source, /url\.pathname === '\/api\/register'/);
+  assert.match(source, /url\.pathname === '\/api\/login'/);
+  assert.match(source, /url\.pathname === '\/api\/logout'/);
+  assert.match(source, /url\.pathname === '\/api\/me'/);
+  assert.match(source, /currentUserForRequest\(req\)/);
 });

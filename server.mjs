@@ -18,6 +18,7 @@ import {
 } from './src/openai-client.js';
 import { loadLocalEnv } from './src/local-env.js';
 import { chatInstructions, readResponseInstructions } from './src/model-prompts.js';
+import { parseCookies, sessionCookie } from './src/auth.js';
 import { authorizeReviewSync, reviewSummariesFromPayload } from './src/review-sync.js';
 
 const root = process.cwd();
@@ -35,6 +36,7 @@ const defaultOpenAIModel = process.env.OPENAI_MODEL || 'gpt-5.5';
 const defaultOpenRouterModel = process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash';
 const defaultOpenRouterFallbacks = 'google/gemini-2.5-flash';
 const journalStore = await createJournalStore({ journalRoot, reviewRoot });
+const sessionCookieName = 'innernote_session';
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -61,6 +63,32 @@ function sendJson(res, status, payload) {
   send(res, status, JSON.stringify(payload), 'application/json; charset=utf-8');
 }
 
+function redirect(res, location) {
+  res.writeHead(302, {
+    Location: location,
+    'Cache-Control': 'no-store',
+  });
+  res.end();
+}
+
+function secureCookieForRequest(req) {
+  return req.headers['x-forwarded-proto'] === 'https' || req.headers.host?.includes('anyhostcloud.com');
+}
+
+function setLoginCookie(req, res, session) {
+  res.setHeader('Set-Cookie', sessionCookie(sessionCookieName, session.id, {
+    maxAge: session.maxAge,
+    secure: secureCookieForRequest(req),
+  }));
+}
+
+function clearLoginCookie(req, res) {
+  res.setHeader('Set-Cookie', sessionCookie(sessionCookieName, '', {
+    maxAge: 0,
+    secure: secureCookieForRequest(req),
+  }));
+}
+
 async function readJson(req) {
   let raw = '';
   for await (const chunk of req) {
@@ -74,6 +102,34 @@ function httpError(status, message) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+async function currentUserForRequest(req) {
+  if (!journalStore.authEnabled) return { id: 'default', username: 'local' };
+  const cookies = parseCookies(req.headers.cookie || '');
+  return journalStore.auth.getSessionUser(cookies[sessionCookieName] || '');
+}
+
+async function reviewSyncUserForRequest(req) {
+  authorizeReviewSync(req.headers);
+  if (!journalStore.authEnabled) return { id: 'default', username: 'local' };
+  const username = process.env.REVIEW_SYNC_USERNAME || process.env.INITIAL_USERNAME || 'reizz';
+  const user = await journalStore.auth.findUserByUsername(username);
+  if (!user) throw httpError(503, `Review sync user ${username} is not configured.`);
+  return user;
+}
+
+async function requireUserForRequest(req, { allowReviewSync = false } = {}) {
+  if (allowReviewSync && journalStore.authEnabled) {
+    try {
+      return await reviewSyncUserForRequest(req);
+    } catch (error) {
+      if (error.status !== 401 && error.status !== 403 && error.status !== 503) throw error;
+    }
+  }
+  const user = await currentUserForRequest(req);
+  if (!user) throw httpError(401, 'Login is required.');
+  return user;
 }
 
 function safePath(pathname) {
@@ -361,7 +417,59 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/login.html') {
+      await handleStatic(req, res);
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/me') {
+      const user = await currentUserForRequest(req);
+      sendJson(res, user ? 200 : 401, {
+        ok: Boolean(user),
+        user,
+      });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/register') {
+      if (!journalStore.authEnabled) throw httpError(503, 'Authentication is not enabled for local file storage.');
+      const payload = await readJson(req);
+      const user = await journalStore.auth.register(payload.username, payload.password);
+      const session = await journalStore.auth.createSession(user.id);
+      setLoginCookie(req, res, session);
+      sendJson(res, 200, { ok: true, user });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/login') {
+      if (!journalStore.authEnabled) throw httpError(503, 'Authentication is not enabled for local file storage.');
+      const payload = await readJson(req);
+      const user = await journalStore.auth.login(payload.username, payload.password);
+      if (!user) throw httpError(401, 'Username or password is incorrect.');
+      const session = await journalStore.auth.createSession(user.id);
+      setLoginCookie(req, res, session);
+      sendJson(res, 200, { ok: true, user });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/logout') {
+      const cookies = parseCookies(req.headers.cookie || '');
+      if (journalStore.authEnabled) await journalStore.auth.deleteSession(cookies[sessionCookieName] || '');
+      clearLoginCookie(req, res);
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+
+    if (journalStore.authEnabled && req.method === 'GET' && !url.pathname.startsWith('/api/') && !url.pathname.startsWith('/src/')) {
+      const user = await currentUserForRequest(req);
+      if (!user) {
+        redirect(res, '/login.html');
+        return;
+      }
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/backup') {
+      await requireUserForRequest(req);
       const payload = await readJson(req);
       const documents = await writeBackup(payload);
       sendJson(res, 200, {
@@ -374,6 +482,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/assets') {
+      await requireUserForRequest(req);
       const payload = await readJson(req);
       const asset = await saveImageAsset(payload);
       sendJson(res, 200, {
@@ -386,6 +495,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/api/assets') {
+      await requireUserForRequest(req);
       const { file } = safeAssetPath(url.searchParams.get('file') || '');
       if (!existsSync(file)) {
         send(res, 404, 'Not found');
@@ -397,11 +507,13 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/api/journals') {
-      const entries = await journalStore.readEntries();
-      const summaries = await journalStore.readSummaries();
+      const user = await requireUserForRequest(req, { allowReviewSync: true });
+      const entries = await journalStore.readEntries(user.id);
+      const summaries = await journalStore.readSummaries(user.id);
       sendJson(res, 200, {
         ok: true,
         folder: journalStore.folder,
+        user: { username: user.username },
         entries,
         summaries,
       });
@@ -409,10 +521,11 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/journals') {
+      const user = await requireUserForRequest(req);
       const payload = await readJson(req);
-      const results = await journalStore.saveEntries(payload.entries || []);
+      const results = await journalStore.saveEntries(user.id, payload.entries || []);
       const summaries = payload.summaries ? reviewSummariesFromPayload(payload) : [];
-      if (summaries.length) await journalStore.saveSummaries(summaries);
+      if (summaries.length) await journalStore.saveSummaries(user.id, summaries);
       sendJson(res, 200, {
         ok: true,
         folder: journalStore.folder,
@@ -423,10 +536,10 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/review-summaries') {
-      authorizeReviewSync(req.headers);
+      const user = await reviewSyncUserForRequest(req);
       const payload = await readJson(req);
       const summaries = reviewSummariesFromPayload(payload);
-      await journalStore.saveSummaries(summaries);
+      await journalStore.saveSummaries(user.id, summaries);
       sendJson(res, 200, {
         ok: true,
         folder: journalStore.folder,
@@ -436,9 +549,10 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/journal-entry') {
+      const user = await requireUserForRequest(req);
       const payload = await readJson(req);
       if (!payload.entry?.id) throw httpError(400, 'entry.id is required');
-      const result = await journalStore.saveEntry(payload.entry);
+      const result = await journalStore.saveEntry(user.id, payload.entry);
       sendJson(res, 200, {
         ok: true,
         folder: journalStore.folder,
@@ -449,9 +563,10 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'DELETE' && url.pathname === '/api/journal-entry') {
+      const user = await requireUserForRequest(req);
       const id = url.searchParams.get('id');
       if (!id) throw httpError(400, 'id is required');
-      const result = await journalStore.deleteEntry(id);
+      const result = await journalStore.deleteEntry(user.id, id);
       sendJson(res, 200, {
         ok: true,
         folder: journalStore.folder,
@@ -461,6 +576,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/model-reply') {
+      await requireUserForRequest(req);
       const payload = await readJson(req);
       const result = await callModelJson({
         instructions: chatInstructions,
@@ -482,6 +598,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/model-read-response') {
+      await requireUserForRequest(req);
       const payload = await readJson(req);
       const entry = slimEntry(payload.entry);
       const result = await callModelJson({
@@ -503,6 +620,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/model-comments') {
+      await requireUserForRequest(req);
       const payload = await readJson(req);
       const entry = slimEntry(payload.entry);
       const result = await callModelJson({

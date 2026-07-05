@@ -123,6 +123,40 @@ button {
   background: linear-gradient(135deg, #416b56, #9fbdb8 58%, #c79b74);
 }
 
+.account-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  margin: 0 0 12px;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.48);
+  color: #49594e;
+  font-size: var(--fs-ui);
+}
+
+.account-bar span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 680;
+}
+
+.account-bar .text-button {
+  min-height: 28px;
+  padding: 0 8px;
+  flex: 0 0 auto;
+}
+
+.cover-page > .account-bar {
+  max-width: 240px;
+  margin-left: auto;
+}
+
 .primary-button,
 .button,
 .text-button,

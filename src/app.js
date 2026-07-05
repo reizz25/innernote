@@ -79,6 +79,7 @@ const dividerPresets = [
 const defaultState = {
   entries: [],
   summaries: [],
+  user: null,
   selectedEntryId: '',
   selectedReviewId: '',
   view: 'cover',
@@ -229,7 +230,8 @@ function normalizeArchiveFilter(filter = {}) {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  const { user, ...persistedState } = state;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
 }
 
 function refreshAutomaticSummaries() {
@@ -243,6 +245,16 @@ function escapeHtml(value = '') {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function renderAccountBar() {
+  if (!state.user?.username) return '';
+  return `
+    <div class="account-bar">
+      <span>${escapeHtml(state.user.username)}</span>
+      <button class="text-button" data-action="logout">退出</button>
+    </div>
+  `;
 }
 
 function sanitizeBodyHtml(value = '') {
@@ -588,6 +600,7 @@ function renderCoverPage() {
   const todos = unfinishedTodos(3);
   return `
     <section class="cover-page">
+      ${renderAccountBar()}
       <div class="cover-kicker">Inner Notes</div>
       <h1>翻开哪一本？</h1>
       <p class="cover-intro">每个月像一本日记本。想写今天，就直接落笔；想回头看，就翻到那个月。</p>
@@ -1162,6 +1175,8 @@ function render() {
           <div>Inner Notes</div>
         </div>
 
+        ${renderAccountBar()}
+
         <button class="button sidebar-cover-link" data-action="open-cover">回到日记本</button>
 
         <button class="primary-button" data-action="start-today">写今天这一页</button>
@@ -1265,6 +1280,28 @@ function setSaveStatus(text) {
   document.querySelectorAll('[data-save-status]').forEach((item) => {
     item.textContent = text;
   });
+}
+
+async function loadCurrentUser() {
+  const response = await fetch('/api/me');
+  const payload = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.assign('/login.html');
+    return false;
+  }
+  if (!response.ok || payload.ok === false) throw new Error(payload.error || `Session failed: ${response.status}`);
+  state.user = payload.user || null;
+  return true;
+}
+
+async function logout() {
+  try {
+    await fetch('/api/logout', { method: 'POST' });
+  } finally {
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.assign('/login.html');
+  }
 }
 
 function isEditingElement(element) {
@@ -2304,6 +2341,7 @@ function handleClick(event) {
   if (action === 'delete-retained') deleteRetained(id);
   if (action === 'backup-now') backupNow(true);
   if (action === 'enable-notifications') enableNotifications();
+  if (action === 'logout') logout();
 }
 
 async function loadJournalFiles() {
@@ -2334,6 +2372,8 @@ async function loadJournalFiles() {
 
 async function initializeApp() {
   app.innerHTML = '<div class="loading">正在打开日记本...</div>';
+  const hasSession = await loadCurrentUser();
+  if (!hasSession) return;
   await loadJournalFiles();
   if (!state.entries.length) {
     ensureToday();
