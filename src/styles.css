@@ -762,6 +762,44 @@ button.heat-day:focus-visible {
     background 260ms ease;
 }
 
+.memory-grid > .memory-card {
+  display: grid;
+  min-height: 118px;
+  align-content: start;
+  gap: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 14px 15px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #334640;
+  text-align: left;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.68),
+    0 10px 24px rgba(104, 143, 132, 0.05);
+  backdrop-filter: blur(14px) saturate(112%);
+  --memory-fill: var(--sky);
+}
+
+.memory-grid > .memory-card span {
+  color: #91a09b;
+  font-size: var(--fs-meta);
+  font-weight: 620;
+}
+
+.memory-grid > .memory-card strong {
+  color: #30433d;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 680;
+}
+
+.memory-grid > .memory-card p {
+  margin: 0;
+  color: #65746f;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .memory-card::before {
   content: "";
   position: absolute;

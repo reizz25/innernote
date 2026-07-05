@@ -1095,6 +1095,9 @@ test('visual tokens use an airy palette and quiet motion', () => {
   assert.match(css, /\.calendar-heatmap/);
   assert.match(css, /\.month-revisit-card/);
   assert.match(css, /\.memory-card:hover/);
+  assert.match(css, /\.memory-grid > \.memory-card[\s\S]*text-align:\s*left/);
+  assert.match(css, /\.memory-grid > \.memory-card[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.58\)/);
+  assert.match(css, /\.memory-grid > \.memory-card[\s\S]*border:\s*1px solid var\(--hairline\)/);
   assert.match(css, /\.cover-note[\s\S]*border-radius:\s*8px/);
   assert.match(css, /\.month-revisit-card[\s\S]*border-radius:\s*8px/);
   assert.match(css, /\.memory-card::before[\s\S]*opacity:\s*0\.14/);
